@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ScrollView, useColorScheme } from 'react-native'
 import MapView from 'react-native-maps'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -47,23 +47,26 @@ export function UnidadesAcudiendo({ unidades, etapa, ubicacionCiudadano }: Props
     ),
   ]
   const puntosEncuadrados = useRef(0)
+  const [mapaListo, setMapaListo] = useState(false)
 
   useEffect(() => {
     // Se encuadra al ciudadano y a las unidades cuando aparece un punto nuevo, no en cada posición que llega.
-    if (puntos.length > puntosEncuadrados.current) {
+    // En Android el mapa no se puede encuadrar antes de onMapReady.
+    if (mapaListo && puntos.length > puntosEncuadrados.current) {
       puntosEncuadrados.current = puntos.length
       mapa.current?.fitToCoordinates(puntos, {
         edgePadding: { top: margenes.top + 60, right: 60, bottom: 60, left: 60 },
         animated: true,
       })
     }
-  }, [puntos, margenes.top])
+  }, [mapaListo, puntos, margenes.top])
 
   return (
     <YStack flex={1} bg="$fondo">
       <MapView
         ref={mapa}
         style={{ flex: 1 }}
+        onMapReady={() => setMapaListo(true)}
         initialRegion={
           puntos[0] ? { ...puntos[0], latitudeDelta: 0.03, longitudeDelta: 0.03 } : undefined
         }
