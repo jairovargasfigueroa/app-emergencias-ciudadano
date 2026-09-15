@@ -1,15 +1,15 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import Feather from '@expo/vector-icons/Feather'
-import { router } from 'expo-router'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { useEffect, useState } from 'react'
 import { StyleSheet, useColorScheme } from 'react-native'
 import MapView, { type Region } from 'react-native-maps'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Paragraph, Spinner, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
 
+import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
-import type { AlertaCreada } from './api'
+import type { AlertaCreada, CrearAlerta } from './api'
 import { obtenerUbicacionGps, ultimaUbicacionConocida, type Coordenadas } from './ubicacion'
 import { useEnviarAlerta } from './useEnviarAlerta'
 
@@ -34,8 +34,8 @@ function regionAlrededorDe({ latitud, longitud }: Coordenadas, delta: number): R
   return { latitude: latitud, longitude: longitud, latitudeDelta: delta, longitudeDelta: delta }
 }
 
-function irAlSeguimiento(alerta: AlertaCreada) {
-  router.replace({ pathname: '/seguimiento/[incidenteId]', params: { incidenteId: String(alerta.incidenteId) } })
+function irAlSeguimiento(alerta: AlertaCreada, datos: CrearAlerta) {
+  abrirSeguimiento(alerta, datos, { reemplazar: true })
 }
 
 /**

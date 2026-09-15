@@ -6,9 +6,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { H1, Paragraph, Text, XStack, YStack } from 'tamagui'
 
 import { ciudadanoQuery } from '@/features/registro/queries'
+import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { MarcaSga } from '@/shared/ui/MarcaSga'
 
-import type { AlertaCreada } from './api'
+import type { AlertaCreada, CrearAlerta } from './api'
 import { BotonPedirAyuda } from './BotonPedirAyuda'
 import { DetallesOpcionales } from './DetallesOpcionales'
 import { EstadoGps } from './EstadoGps'
@@ -16,8 +17,8 @@ import { alertaKeys, estadoGpsQuery } from './queries'
 import { obtenerUbicacionGps, prepararPermisoDeUbicacion } from './ubicacion'
 import { useEnviarAlerta } from './useEnviarAlerta'
 
-function irAlSeguimiento(alerta: AlertaCreada) {
-  router.push({ pathname: '/seguimiento/[incidenteId]', params: { incidenteId: String(alerta.incidenteId) } })
+function irAlSeguimiento(alerta: AlertaCreada, datos: CrearAlerta) {
+  abrirSeguimiento(alerta, datos)
 }
 
 /**
