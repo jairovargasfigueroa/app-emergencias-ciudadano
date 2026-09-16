@@ -53,7 +53,9 @@ export function PantallaSeguimiento() {
   const concluido = vista.tipo === 'concluido'
   const unidades = vista.tipo === 'acudiendo' && seguimiento ? seguimiento.unidades : []
   const alertaId = Number(parametros.alertaId)
-  const puedePreguntar = Number.isFinite(alertaId) && alertaId > 0
+  // Los detalles se aceptan mientras el incidente siga abierto y ninguna unidad haya llegado al lugar.
+  const aunSeAceptanDetalles = vista.tipo === 'buscando' || (vista.tipo === 'acudiendo' && vista.etapa === 'EN_CAMINO')
+  const puedePreguntar = aunSeAceptanDetalles && Number.isFinite(alertaId) && alertaId > 0
   const altos = ALTOS_DE_HOJA[vista.tipo]
 
   useEffect(() => {
