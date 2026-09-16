@@ -97,9 +97,13 @@ function Pantallas() {
   }, [listo])
 
   useEffect(() => {
+    // Solo al abrir la app: después, guardar un caso nuevo no debe mover al ciudadano de pantalla.
+    if (!listo || yaSeRestauro.current) {
+      return
+    }
+    yaSeRestauro.current = true
     // PB-06: si la app se cerró con un caso abierto, se abre directo en su seguimiento y no en el botón.
-    if (listo && registrado && enCurso.data && !yaSeRestauro.current) {
-      yaSeRestauro.current = true
+    if (registrado && enCurso.data) {
       abrirSeguimiento(enCurso.data, { reemplazar: true })
     }
   }, [listo, registrado, enCurso.data])
