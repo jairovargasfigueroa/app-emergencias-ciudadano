@@ -6,10 +6,10 @@ import MapView, { type Region } from 'react-native-maps'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Paragraph, Spinner, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
 
+import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
-import type { AlertaCreada, CrearAlerta } from './api'
 import { obtenerUbicacionGps, ultimaUbicacionConocida, type Coordenadas } from './ubicacion'
 import { useEnviarAlerta } from './useEnviarAlerta'
 
@@ -34,13 +34,13 @@ function regionAlrededorDe({ latitud, longitud }: Coordenadas, delta: number): R
   return { latitude: latitud, longitude: longitud, latitudeDelta: delta, longitudeDelta: delta }
 }
 
-function irAlSeguimiento(alerta: AlertaCreada, datos: CrearAlerta) {
-  abrirSeguimiento(alerta, datos, { reemplazar: true })
+function irAlSeguimiento(seguimiento: SeguimientoGuardado) {
+  abrirSeguimiento(seguimiento, { reemplazar: true })
 }
 
 /**
  * PB-02 R2 y CA-02: sin GPS, el ciudadano mueve el mapa hasta dejar el pin donde está y la alerta sale con origen
- * MANUAL. Nunca se rechaza por falta de GPS.
+ * MANUAL. Nunca se rechaza por falta de GPS. Aquí basta un toque: ya hubo intención y se perdieron varios segundos.
  */
 export function PantallaPin() {
   const margenes = useSafeAreaInsets()
@@ -106,7 +106,7 @@ export function PantallaPin() {
         </YStack>
       </YStack>
 
-      <XStack
+      <YStack
         position="absolute"
         t={margenes.top + 12}
         l={16}
@@ -121,18 +121,27 @@ export function PantallaPin() {
         shadowOffset={{ width: 0, height: 8 }}
         elevation={6}
       >
-        <YStack width={40} height={40} shrink={0} rounded={999} bg="$enAtencionTinte" items="center" justify="center">
-          <Feather name="alert-triangle" size={20} color={tema.enAtencionTexto?.val} />
-        </YStack>
-        <YStack flex={1} gap={4}>
-          <Text color="$texto" fontSize={16} lineHeight={22} fontWeight="600">
-            No pudimos obtener tu ubicación
+        <XStack gap={12}>
+          <YStack width={40} height={40} shrink={0} rounded={999} bg="$primarioTinte" items="center" justify="center">
+            <Feather name="map-pin" size={20} color={tema.primario?.val} />
+          </YStack>
+          <YStack flex={1} gap={4}>
+            <Text color="$texto" fontSize={18} lineHeight={24} fontWeight="600">
+              Marca dónde estás
+            </Text>
+            <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
+              Mueve el mapa hasta dejar el pin sobre tu posición.
+            </Paragraph>
+          </YStack>
+        </XStack>
+        {/* Lo más importante de esta pantalla: todavía no salió nada. */}
+        <XStack items="center" gap={8} px={12} py={10} rounded={12} bg="$enAtencionTinte">
+          <Feather name="alert-circle" size={18} color={tema.enAtencionTexto?.val} />
+          <Text color="$enAtencionTexto" fontSize={15} lineHeight={20} fontWeight="600" shrink={1}>
+            Tu alerta todavía no se ha enviado
           </Text>
-          <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
-            Mueve el mapa hasta dejar el pin donde estás.
-          </Paragraph>
-        </YStack>
-      </XStack>
+        </XStack>
+      </YStack>
 
       <YStack
         position="absolute"
@@ -161,12 +170,16 @@ export function PantallaPin() {
           disabled={!centro || ocupado}
           opacity={!centro || ocupado ? 0.7 : 1}
           icon={enviando ? <Spinner color="$primarioTexto" /> : undefined}
+          aria-label="Enviar la alerta con este punto"
           onPress={() => centro && enviar(centro, 'MANUAL')}
         >
           <Button.Text color="$primarioTexto" fontSize={17} fontWeight="600">
-            Enviar alerta aquí
+            {enviando ? 'Enviando…' : 'Enviar alerta aquí'}
           </Button.Text>
         </BotonPrincipal>
+        <Paragraph color="$textoTenue" fontSize={13} lineHeight={18} text="center">
+          Un toque y la ayuda sale con este punto.
+        </Paragraph>
         <Button
           height={48}
           rounded={14}
