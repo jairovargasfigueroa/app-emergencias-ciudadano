@@ -20,8 +20,11 @@ export function TarjetaUnidad({ unidad, ahora }: { unidad: UnidadSeguimiento; ah
   const estado = ESTADOS[unidad.estado]
   const enPosicion = unidad.posicion?.en
   const desactualizada = posicionDesactualizada(enPosicion, ahora)
+  // Que todavía no llegue la posición es problema del sistema, no del ciudadano: se cuenta como lo que ya sabemos.
   const detalle = !unidad.posicion
-    ? 'Sin posición todavía'
+    ? unidad.estado === 'EN_CAMINO'
+      ? 'En camino, ubicación en unos segundos'
+      : 'Ubicación en unos segundos'
     : enPosicion && !desactualizada
       ? `Actualizado ${haceCuanto(segundosDesde(enPosicion, ahora))}`
       : 'Posición recibida'

@@ -1,6 +1,6 @@
 import { mutationOptions, queryOptions } from '@tanstack/react-query'
 
-import { alertaApi, type CrearAlerta } from './api'
+import { alertaApi, type CrearAlerta, type DetallesAlerta } from './api'
 import { consultarEstadoGps } from './ubicacion'
 
 export const alertaKeys = {
@@ -27,4 +27,22 @@ export const emitirAlertaMutation = () =>
   mutationOptions({
     mutationKey: ['alertas', 'emitir'],
     mutationFn: ({ ciudadanoId, datos }: EmitirAlerta) => alertaApi.emitir(ciudadanoId, datos),
+  })
+
+export type CompletarDetalles = {
+  ciudadanoId: number
+  alertaId: number
+  detalles: DetallesAlerta
+}
+
+/**
+ * `POST /alertas/{alertaId}/detalles`. El mismo `scope` en todas las respuestas las pone en fila: si el ciudadano
+ * contesta dos cosas seguidas, la última no adelanta a la anterior.
+ */
+export const completarDetallesMutation = () =>
+  mutationOptions({
+    mutationKey: ['alertas', 'detalles'],
+    scope: { id: 'alerta-detalles' },
+    mutationFn: ({ ciudadanoId, alertaId, detalles }: CompletarDetalles) =>
+      alertaApi.completarDetalles(ciudadanoId, alertaId, detalles),
   })
