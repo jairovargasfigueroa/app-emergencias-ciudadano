@@ -10,6 +10,7 @@ import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
+import { AvisoAlertaNoEnviada } from './AvisoAlertaNoEnviada'
 import { obtenerUbicacionGps, ultimaUbicacionConocida, type Coordenadas } from './ubicacion'
 import { useEnviarAlerta } from './useEnviarAlerta'
 
@@ -47,7 +48,8 @@ export function PantallaPin() {
   const esquema = useColorScheme() === 'dark' ? 'dark' : 'light'
   const tema = useTheme()
   const toast = useToastController()
-  const { enviar, enviando, esperandoConexion } = useEnviarAlerta(irAlSeguimiento)
+  const { enviar, empezarIntento, reintentar, enviando, esperandoConexion, rechazada } =
+    useEnviarAlerta(irAlSeguimiento)
 
   const [regionInicial, setRegionInicial] = useState<Region | null>(null)
   const [centro, setCentro] = useState<Coordenadas | null>(null)
@@ -69,6 +71,7 @@ export function PantallaPin() {
   }, [])
 
   async function reintentarGps() {
+    empezarIntento()
     setBuscandoGps(true)
     const coordenadas = await obtenerUbicacionGps()
     setBuscandoGps(false)
@@ -161,6 +164,7 @@ export function PantallaPin() {
         shadowOffset={{ width: 0, height: -8 }}
         elevation={12}
       >
+        {rechazada ? <AvisoAlertaNoEnviada reintentando={enviando} onReintentar={reintentar} /> : null}
         {esperandoConexion ? (
           <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20} text="center">
             Sin conexión. La alerta se enviará en cuanto vuelva la señal.

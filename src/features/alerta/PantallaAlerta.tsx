@@ -10,6 +10,7 @@ import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { MarcaSga } from '@/shared/ui/MarcaSga'
 
+import { AvisoAlertaNoEnviada } from './AvisoAlertaNoEnviada'
 import { BotonPedirAyuda } from './BotonPedirAyuda'
 import { EstadoGps } from './EstadoGps'
 import { alertaKeys, estadoGpsQuery } from './queries'
@@ -28,7 +29,8 @@ export function PantallaAlerta() {
   const queryClient = useQueryClient()
   const ciudadano = useQuery(ciudadanoQuery()).data
   const estadoGps = useQuery(estadoGpsQuery())
-  const { enviar, enviando, esperandoConexion } = useEnviarAlerta(irAlSeguimiento)
+  const { enviar, empezarIntento, reintentar, enviando, esperandoConexion, rechazada } =
+    useEnviarAlerta(irAlSeguimiento)
   const [buscandoUbicacion, setBuscandoUbicacion] = useState(false)
   const [ofrecerMapa, setOfrecerMapa] = useState(false)
   // Identifica el intento en curso: si el ciudadano se va al mapa, el GPS que llegue tarde se descarta.
@@ -53,6 +55,7 @@ export function PantallaAlerta() {
     if (buscandoUbicacion || enviando) {
       return
     }
+    empezarIntento()
     const mio = ++intento.current
     setBuscandoUbicacion(true)
     const coordenadas = await obtenerUbicacionGps()
@@ -95,7 +98,8 @@ export function PantallaAlerta() {
 
           <BotonPedirAyuda buscando={buscandoUbicacion} enviando={enviando} onCompletar={pedirAyuda} />
 
-          <YStack items="center" gap={12} minH={44}>
+          <YStack self="stretch" items="center" gap={12} minH={44}>
+            {rechazada ? <AvisoAlertaNoEnviada reintentando={enviando} onReintentar={reintentar} /> : null}
             {aviso ? (
               <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20} text="center" aria-live="polite">
                 {aviso}
