@@ -1,4 +1,5 @@
 import * as Location from 'expo-location'
+import { Platform } from 'react-native'
 
 export type Coordenadas = {
   latitud: number
@@ -30,15 +31,16 @@ export async function consultarEstadoGps(): Promise<EstadoGps> {
 }
 
 /**
- * Posición GPS actual, o `null` si no hay permiso, el GPS está apagado, falla o tarda demasiado. Con `null` la app
- * pide fijar el pin: la alerta nunca se rechaza por falta de GPS.
+ * Posición GPS actual, o `null` para pasar al pin: la alerta nunca se rechaza por falta de GPS (PB-02 R2). Antes de
+ * rendirse intenta lo que el teléfono permite: conseguir el permiso, encender la ubicación y esperar la posición. Con
+ * permiso y GPS encendido no aparece ningún cuadro del sistema (PB-02 CA-01).
  */
 export async function obtenerUbicacionGps(): Promise<Coordenadas | null> {
   try {
-    await prepararPermisoDeUbicacion()
-    if ((await consultarEstadoGps()) !== 'listo') {
+    if (!(await conseguirPermiso()) || !(await encenderUbicacion())) {
       return null
     }
+    // Paso 3: la posición, con límite de tiempo.
     const posicion = await conLimiteDeTiempo(
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
       ESPERA_MAXIMA_GPS_MS,
@@ -47,6 +49,37 @@ export async function obtenerUbicacionGps(): Promise<Coordenadas | null> {
   } catch {
     return null
   }
+}
+
+/** Paso 1: el permiso. Si falta y el sistema todavía deja preguntar, se pide con su cuadro; si no, se pasa al pin. */
+async function conseguirPermiso() {
+  const permiso = await Location.getForegroundPermissionsAsync()
+  if (permiso.granted) {
+    return true
+  }
+  if (!permiso.canAskAgain) {
+    return false
+  }
+  return (await Location.requestForegroundPermissionsAsync()).granted
+}
+
+/**
+ * Paso 2: la ubicación del teléfono encendida. En Android se pide con el cuadro del sistema, que falla si la persona no
+ * la enciende; iOS no deja encenderla desde la app, así que se pasa al pin.
+ */
+async function encenderUbicacion() {
+  if (await Location.hasServicesEnabledAsync()) {
+    return true
+  }
+  if (Platform.OS !== 'android') {
+    return false
+  }
+  try {
+    await Location.enableNetworkProviderAsync()
+  } catch {
+    return false
+  }
+  return Location.hasServicesEnabledAsync()
 }
 
 /** Última posición que conoce el teléfono, para centrar el mapa del pin. Puede ser vieja o no existir. */

@@ -21,8 +21,9 @@ import { useEnviarAlerta } from './useEnviarAlerta'
 const ESPERA_ANTES_DE_OFRECER_EL_MAPA_MS = 3000
 
 /**
- * PB-02 CA-01 y CA-02: la alerta sale con el gesto del botón, sin pantallas intermedias; si el GPS falla, no hay
- * permiso o tarda demasiado, se pasa a marcar el punto en el mapa.
+ * PB-02 CA-01 y CA-02: la alerta sale con el gesto del botón, sin pantallas intermedias. Si falta el permiso o la
+ * ubicación está apagada, primero se piden con los cuadros del sistema; si no se consiguen, el GPS falla o tarda
+ * demasiado, se pasa a marcar el punto en el mapa.
  */
 export function PantallaAlerta() {
   const margenes = useSafeAreaInsets()
@@ -57,6 +58,7 @@ export function PantallaAlerta() {
     }
     empezarIntento()
     const mio = ++intento.current
+    // El botón queda ocupado todo el intento, también mientras están los cuadros del permiso o de encender la ubicación.
     setBuscandoUbicacion(true)
     const coordenadas = await obtenerUbicacionGps()
     if (mio !== intento.current) {
