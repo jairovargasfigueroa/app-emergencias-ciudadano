@@ -20,7 +20,8 @@ import { ToastActual } from '@/shared/ui/ToastActual'
 import { tamaguiConfig } from '@/tamagui.config'
 import { coloresClaro, coloresOscuro } from '@/tema/colores'
 
-SplashScreen.preventAutoHideAsync()
+// Si el splash ya no se puede retener, la app sigue igual: no hay nada que hacer con el error.
+SplashScreen.preventAutoHideAsync().catch(() => {})
 
 const navegacionClara: Theme = {
   ...DefaultTheme,
