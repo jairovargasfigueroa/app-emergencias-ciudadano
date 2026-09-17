@@ -2,7 +2,7 @@ import { IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono/500Mediu
 import { IBMPlexSans_400Regular } from '@expo-google-fonts/ibm-plex-sans/400Regular'
 import { IBMPlexSans_500Medium } from '@expo-google-fonts/ibm-plex-sans/500Medium'
 import { IBMPlexSans_600SemiBold } from '@expo-google-fonts/ibm-plex-sans/600SemiBold'
-import { QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useFonts } from 'expo-font'
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
@@ -12,6 +12,7 @@ import { useColorScheme } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TamaguiProvider, ToastProvider, ToastViewport } from 'tamagui'
 
+import { ciudadanoQuery } from '@/features/registro/queries'
 import { queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
 import { ToastActual } from '@/shared/ui/ToastActual'
 import { tamaguiConfig } from '@/tamagui.config'
@@ -55,12 +56,6 @@ export default function LayoutRaiz() {
   })
   useFocoDeLaApp()
 
-  useEffect(() => {
-    if (fuentesListas || errorFuentes) {
-      SplashScreen.hide()
-    }
-  }, [fuentesListas, errorFuentes])
-
   if (!fuentesListas && !errorFuentes) {
     return null
   }
@@ -72,12 +67,46 @@ export default function LayoutRaiz() {
         <ThemeProvider value={esquema === 'dark' ? navegacionOscura : navegacionClara}>
           <ToastProvider duration={4000} swipeDirection="up">
             <StatusBar style={esquema === 'dark' ? 'light' : 'dark'} />
-            <Stack screenOptions={{ headerShown: false }} />
+            <Pantallas />
             <ToastActual />
             <ToastViewport flexDirection="column-reverse" t={margenes.top + 8} l={0} r={0} />
           </ToastProvider>
         </ThemeProvider>
       </TamaguiProvider>
     </QueryClientProvider>
+  )
+}
+
+/**
+ * PB-02 R1: sin registro ligero solo existe la pantalla de registro. Al registrarse, el guard cambia y el router
+ * lleva solo a la pantalla del botón.
+ */
+function Pantallas() {
+  const ciudadano = useQuery(ciudadanoQuery())
+  const listo = !ciudadano.isPending
+
+  useEffect(() => {
+    if (listo) {
+      SplashScreen.hide()
+    }
+  }, [listo])
+
+  if (!listo) {
+    return null
+  }
+
+  const registrado = ciudadano.data != null
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={registrado}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="pin" />
+        <Stack.Screen name="seguimiento/[incidenteId]" />
+      </Stack.Protected>
+      <Stack.Protected guard={!registrado}>
+        <Stack.Screen name="registro" />
+      </Stack.Protected>
+    </Stack>
   )
 }

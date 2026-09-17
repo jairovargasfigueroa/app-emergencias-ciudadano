@@ -32,6 +32,13 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SGA Ciudadano envía tu ubicación con la alerta para que la ambulancia llegue a ti."
+        }
       ]
     ],
     "experiments": {
