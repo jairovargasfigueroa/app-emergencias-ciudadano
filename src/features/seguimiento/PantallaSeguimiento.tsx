@@ -27,11 +27,14 @@ export type ParametrosSeguimiento = {
   origen?: string
 }
 
+/** Porcentaje del alto de la pantalla: Tamagui no acepta cualquier `string` como medida. */
+type Porcentaje = `${number}%`
+
 /**
  * Alto de la hoja en cada momento. Al principio ocupa bastante, porque el mapa no tiene nada más que mostrar que el
  * punto del ciudadano; encoge cuando aparecen unidades y vuelve a crecer para dar el cierre.
  */
-const ALTOS_DE_HOJA: Record<VistaSeguimiento['tipo'], { minH?: string; maxH: string }> = {
+const ALTOS_DE_HOJA: Record<VistaSeguimiento['tipo'], { minH?: Porcentaje; maxH: Porcentaje }> = {
   buscando: { minH: '52%', maxH: '74%' },
   acudiendo: { maxH: '56%' },
   concluido: { minH: '46%', maxH: '82%' },
