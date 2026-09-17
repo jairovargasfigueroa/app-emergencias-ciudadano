@@ -5,7 +5,7 @@ import { useToastController } from 'tamagui'
 import { ciudadanoQuery, olvidarCiudadano } from '@/features/registro/queries'
 import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { recordarSeguimiento } from '@/features/seguimiento/queries'
-import { ErrorApi, mensajeDeError } from '@/shared/api/cliente'
+import { ErrorApi } from '@/shared/api/cliente'
 
 import type { OrigenUbicacion } from './api'
 import { emitirAlertaMutation } from './queries'
@@ -26,7 +26,8 @@ export function useEnviarAlerta(alEnviar: (seguimiento: SeguimientoGuardado) => 
   const toast = useToastController()
   const ciudadano = useQuery(ciudadanoQuery()).data
   const emitir = useMutation(emitirAlertaMutation())
-  // Envío que el servidor rechazó: su aviso queda fijo hasta que el reintento salga bien o empiece un intento nuevo.
+  // Envío que el servidor rechazó o no pudo recibir: su aviso queda fijo hasta que el reintento salga bien o empiece un
+  // intento nuevo.
   const [rechazado, setRechazado] = useState<Envio | null>(null)
 
   function mandar(envio: Envio) {
@@ -57,11 +58,8 @@ export function useEnviarAlerta(alEnviar: (seguimiento: SeguimientoGuardado) => 
             toast.show('Necesitamos registrarte de nuevo', { message: 'Tu registro ya no existe en el sistema.' })
             return
           }
-          if (error instanceof ErrorApi && error.status === 0) {
-            // Sin conexión con el servidor se avisa como siempre.
-            toast.show('No se pudo enviar la alerta', { message: mensajeDeError(error) })
-            return
-          }
+          // También con el servidor caído o inalcanzable. Sin señal en el teléfono no se llega acá: la mutación queda
+          // en pausa y sale sola cuando vuelve.
           setRechazado(envio)
         },
       },

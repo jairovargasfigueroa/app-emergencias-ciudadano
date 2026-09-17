@@ -8,8 +8,8 @@ type Props = {
 }
 
 /**
- * El servidor rechazó la alerta. En vez de un aviso que se va solo, queda fijo junto al botón hasta que el reintento
- * salga bien o empiece un intento nuevo, y reintentar es un solo toque. Tamagui no trae un aviso en línea.
+ * El servidor rechazó la alerta o no respondió. En vez de un aviso que se va solo, queda fijo junto al botón hasta que
+ * el reintento salga bien o empiece un intento nuevo, y reintentar es un solo toque. Tamagui no trae un aviso en línea.
  */
 export function AvisoAlertaNoEnviada({ reintentando, onReintentar }: Props) {
   const tema = useTheme()
