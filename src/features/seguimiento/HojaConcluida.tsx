@@ -50,7 +50,17 @@ export function HojaConcluida({ estado }: { estado: EstadoIncidente }) {
           : 'Dejamos de seguir la ubicación de las unidades.'}
       </Paragraph>
 
-      <Button height={52} rounded={14} bg="$superficie" borderColor="$bordeFuerte" onPress={() => router.replace('/')}>
+      {/*
+       * Vuelve al inicio que ya está debajo si el seguimiento se abrió desde el botón o desde el pin; si se restauró al
+       * abrir la app no hay inicio debajo, y dismissTo lo pone en lugar del seguimiento en vez de apilar otro.
+       */}
+      <Button
+        height={52}
+        rounded={14}
+        bg="$superficie"
+        borderColor="$bordeFuerte"
+        onPress={() => router.dismissTo('/')}
+      >
         <Button.Text color="$texto" fontSize={16} fontWeight="500">
           Volver al inicio
         </Button.Text>
