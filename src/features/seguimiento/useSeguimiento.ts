@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { baseDatosFirebase } from '@/shared/firebase/baseDatos'
 
-import { esEstadoFinal, type Seguimiento, type UnidadSeguimiento } from './api'
+import { esEstadoAtencion, esEstadoFinal, type Seguimiento, type UnidadSeguimiento } from './api'
 
 export type EstadoSeguimiento = {
   cargando: boolean
@@ -51,7 +51,10 @@ function leerSeguimiento(snapshot: DataSnapshot): Seguimiento {
   // Las unidades usan el id de la ambulancia como clave: se recorren con forEach para no recibir un arreglo con huecos.
   snapshot.child('unidades').forEach((hijo) => {
     const unidad = hijo.val() as Omit<UnidadSeguimiento, 'ambulanciaId'>
-    unidades.push({ ...unidad, ambulanciaId: Number(hijo.key) })
+    // Se filtra antes de pintar o calcular la etapa: un estado que la app no conoce no puede tumbar la pantalla (R2).
+    if (esEstadoAtencion(unidad?.estado)) {
+      unidades.push({ ...unidad, ambulanciaId: Number(hijo.key) })
+    }
   })
   const valor = snapshot.val() as Omit<Seguimiento, 'unidades'>
   return {
