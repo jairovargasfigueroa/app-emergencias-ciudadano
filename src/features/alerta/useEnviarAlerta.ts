@@ -4,7 +4,7 @@ import { useToastController } from 'tamagui'
 import { ciudadanoQuery, olvidarCiudadano } from '@/features/registro/queries'
 import { ErrorApi, mensajeDeError } from '@/shared/api/cliente'
 
-import type { AlertaCreada, OrigenUbicacion } from './api'
+import type { AlertaCreada, CrearAlerta, OrigenUbicacion } from './api'
 import { camposOpcionales, leerDetallesAlerta, limpiarDetallesAlerta } from './detalles'
 import { emitirAlertaMutation } from './queries'
 import type { Coordenadas } from './ubicacion'
@@ -13,7 +13,7 @@ import type { Coordenadas } from './ubicacion'
  * Envía la alerta del ciudadano registrado con los detalles opcionales que haya escrito. Lo usan la pantalla del
  * botón (GPS) y la del pin manual (MANUAL, o GPS si vuelve a intentarlo).
  */
-export function useEnviarAlerta(alEnviar: (alerta: AlertaCreada) => void) {
+export function useEnviarAlerta(alEnviar: (alerta: AlertaCreada, datos: CrearAlerta) => void) {
   const queryClient = useQueryClient()
   const toast = useToastController()
   const ciudadano = useQuery(ciudadanoQuery()).data
@@ -29,9 +29,9 @@ export function useEnviarAlerta(alEnviar: (alerta: AlertaCreada) => void) {
         datos: { ...coordenadas, origenUbicacion, ...camposOpcionales(leerDetallesAlerta()) },
       },
       {
-        onSuccess: (alerta) => {
+        onSuccess: (alerta, { datos }) => {
           limpiarDetallesAlerta()
-          alEnviar(alerta)
+          alEnviar(alerta, datos)
         },
         onError: (error) => {
           if (error instanceof ErrorApi && error.status === 404) {
