@@ -6,7 +6,7 @@ export type Coordenadas = {
   longitud: number
 }
 
-export type EstadoGps = 'listo' | 'sinPermiso' | 'apagado'
+export type EstadoGps = 'listo' | 'sinPermiso' | 'permisoBloqueado' | 'apagado'
 
 /** Espera máxima por la posición antes de pasar al pin manual (PB-02 R2). */
 const ESPERA_MAXIMA_GPS_MS = 10_000
@@ -28,7 +28,8 @@ export async function prepararPermisoDeUbicacion() {
 export async function consultarEstadoGps(): Promise<EstadoGps> {
   const permiso = await Location.getForegroundPermissionsAsync()
   if (!permiso.granted) {
-    return 'sinPermiso'
+    // Negado para siempre: el sistema ya no deja volver a preguntar, solo se activa en los ajustes.
+    return permiso.canAskAgain ? 'sinPermiso' : 'permisoBloqueado'
   }
   return (await Location.hasServicesEnabledAsync()) ? 'listo' : 'apagado'
 }
