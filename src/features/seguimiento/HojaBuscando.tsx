@@ -6,15 +6,17 @@ import { cronometro, horaCorta, segundosDesde } from '@/shared/formato/tiempo'
 type Props = {
   enviadaEn?: string
   origen?: string
+  /** Todavía no llegó el primer dato del seguimiento: no se afirma que se esté buscando unidad. */
+  conectando: boolean
   sinTiempoReal: boolean
   ahora: number
 }
 
 /**
- * El incidente sigue sin unidades. Manda la confirmación de que la alerta salió; el cronómetro de PB-06 CA-01 sigue
- * corriendo debajo, en chico, porque el tiempo que pasa no es una buena noticia que destacar.
+ * El incidente sigue sin unidades, o todavía no se sabe. Manda la confirmación de que la alerta salió; el cronómetro
+ * de PB-06 CA-01 sigue corriendo debajo, en chico, porque el tiempo que pasa no es una buena noticia que destacar.
  */
-export function HojaBuscando({ enviadaEn, origen, sinTiempoReal, ahora }: Props) {
+export function HojaBuscando({ enviadaEn, origen, conectando, sinTiempoReal, ahora }: Props) {
   const tema = useTheme()
 
   return (
@@ -50,13 +52,15 @@ export function HojaBuscando({ enviadaEn, origen, sinTiempoReal, ahora }: Props)
           </Text>
         ) : null}
         <Text color="$textoSecundario" fontSize={14}>
-          {enviadaEn ? '· Buscando unidad' : 'Buscando unidad'}
+          {`${enviadaEn ? '· ' : ''}${conectando ? 'Conectando…' : 'Buscando unidad'}`}
         </Text>
       </XStack>
 
-      <Paragraph color="$textoSecundario" fontSize={15} lineHeight={22}>
-        Tu alerta llegó a todas las unidades disponibles. Esta pantalla cambia sola cuando una tome tu caso.
-      </Paragraph>
+      {conectando ? null : (
+        <Paragraph color="$textoSecundario" fontSize={15} lineHeight={22}>
+          Tu alerta llegó a todas las unidades disponibles. Esta pantalla cambia sola cuando una tome tu caso.
+        </Paragraph>
+      )}
 
       {sinTiempoReal ? (
         <Paragraph color="$enAtencionTexto" fontSize={14} lineHeight={20}>

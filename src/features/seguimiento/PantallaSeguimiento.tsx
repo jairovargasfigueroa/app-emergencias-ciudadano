@@ -46,16 +46,17 @@ export function PantallaSeguimiento() {
   const queryClient = useQueryClient()
   const parametros = useLocalSearchParams<ParametrosSeguimiento>()
   const ahora = useAhora()
-  const { error, seguimiento } = useSeguimiento(Number(parametros.incidenteId))
+  const { cargando, error, seguimiento } = useSeguimiento(Number(parametros.incidenteId))
   const vista = vistaDeSeguimiento(seguimiento)
   const [altoHoja, setAltoHoja] = useState(0)
 
   const concluido = vista.tipo === 'concluido'
   const unidades = vista.tipo === 'acudiendo' && seguimiento ? seguimiento.unidades : []
   const alertaId = Number(parametros.alertaId)
-  // Los detalles se aceptan mientras el incidente siga abierto y ninguna unidad haya llegado al lugar.
+  // Los detalles se aceptan mientras el incidente siga abierto y ninguna unidad haya llegado al lugar. Sin el primer
+  // dato de Firebase eso todavía no se sabe, así que no se pregunta.
   const aunSeAceptanDetalles = vista.tipo === 'buscando' || (vista.tipo === 'acudiendo' && vista.etapa === 'EN_CAMINO')
-  const puedePreguntar = aunSeAceptanDetalles && Number.isFinite(alertaId) && alertaId > 0
+  const puedePreguntar = !cargando && aunSeAceptanDetalles && Number.isFinite(alertaId) && alertaId > 0
   const altos = ALTOS_DE_HOJA[vista.tipo]
 
   useEffect(() => {
@@ -110,6 +111,7 @@ export function PantallaSeguimiento() {
                 <HojaBuscando
                   enviadaEn={parametros.enviadaEn}
                   origen={parametros.origen}
+                  conectando={cargando}
                   sinTiempoReal={error}
                   ahora={ahora}
                 />
