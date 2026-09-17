@@ -114,10 +114,8 @@ export function PantallaSeguimiento() {
                   ahora={ahora}
                 />
               )}
-              {/* Las preguntas conservan su sitio en el árbol: al aparecer unidades se colapsan, no se reinician. */}
-              {puedePreguntar ? (
-                <PreguntasIncidente alertaId={alertaId} compactas={vista.tipo === 'acudiendo'} />
-              ) : null}
+              {/* Las preguntas conservan su sitio en el árbol: al aparecer unidades no se pierde lo contestado. */}
+              {puedePreguntar ? <PreguntasIncidente alertaId={alertaId} /> : null}
             </>
           )}
         </ScrollView>

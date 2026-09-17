@@ -1,102 +1,53 @@
 import Feather from '@expo/vector-icons/Feather'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
-import { Button, Text, TextArea, XStack, YStack, useTheme } from 'tamagui'
+import { useForm } from '@tanstack/react-form'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Button, Input, Paragraph, Spinner, Text, XStack, YStack, useTheme } from 'tamagui'
 
-import type { DetallesAlerta } from '@/features/alerta/api'
 import { completarDetallesMutation } from '@/features/alerta/queries'
 import { ciudadanoQuery } from '@/features/registro/queries'
 import { ErrorApi } from '@/shared/api/cliente'
 
-/** Espera desde la última tecla antes de guardar: el teléfono se puede soltar en cualquier segundo. */
-const ESPERA_AL_ESCRIBIR_MS = 1200
-
-const LARGO_MAXIMO_DESCRIPCION = 2000
-
-/** Cuatro respuestas de un toque, sin `+` ni `−`. No hay "no sé": no contestar ya significa eso. */
-const OPCIONES_AFECTADOS = [
-  { valor: 1, texto: '1', etiqueta: '1 persona' },
-  { valor: 2, texto: '2', etiqueta: '2 personas' },
-  { valor: 3, texto: '3', etiqueta: '3 personas' },
-  { valor: 4, texto: '4 o más', etiqueta: '4 personas o más' },
-]
-
-type Props = {
-  alertaId: number
-  /** Ya hay unidades acudiendo: las preguntas ceden el espacio y arrancan colapsadas. */
-  compactas: boolean
-}
+import {
+  detallesDeRespuestas,
+  hayRespuestas,
+  LARGO_MAXIMO_OTRO,
+  OPCIONES_AFECTADOS,
+  PARA_QUIEN,
+  SIN_RESPUESTAS,
+  TIPO_OTRO,
+  TIPOS_DE_EMERGENCIA,
+} from './preguntas'
+import { seguimientoEnCursoQuery } from './queries'
 
 /**
- * PB-02 R3: cantidad de afectados y descripción, opcionales. Se preguntan durante la espera, no antes de emitir, y
- * cada respuesta se guarda sola contra `POST /alertas/{alertaId}/detalles`.
+ * PB-02 R3: para quién es la ayuda, qué pasó y cuántas personas la necesitan, todo opcional. Se pregunta durante la
+ * espera y sale en un solo envío contra `POST /alertas/{alertaId}/detalles`; una vez enviado ya no se edita.
  */
-export function PreguntasIncidente({ alertaId, compactas }: Props) {
+export function PreguntasIncidente({ alertaId }: { alertaId: number }) {
+  const queryClient = useQueryClient()
   const ciudadano = useQuery(ciudadanoQuery()).data
-  const completar = useMutation(completarDetallesMutation())
+  const enCurso = useQuery(seguimientoEnCursoQuery()).data
+  const completar = useMutation(completarDetallesMutation(queryClient))
 
-  const [afectados, setAfectados] = useState<number | null>(null)
-  const [descripcion, setDescripcion] = useState('')
-  const [abiertaAfectados, setAbiertaAfectados] = useState(!compactas)
-  const [abiertaQuePaso, setAbiertaQuePaso] = useState(!compactas)
-  const ultimoTextoGuardado = useRef('')
-  const temporizador = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const form = useForm({
+    defaultValues: SIN_RESPUESTAS,
+    onSubmit: ({ value }) => {
+      const detalles = detallesDeRespuestas(value)
+      if (ciudadano && hayRespuestas(detalles) && !completar.isPending) {
+        completar.mutate({ ciudadanoId: ciudadano.id, alertaId, detalles })
+      }
+    },
+  })
 
-  useEffect(() => () => clearTimeout(temporizador.current), [])
-
-  useEffect(() => {
-    if (compactas) {
-      setAbiertaAfectados(false)
-      setAbiertaQuePaso(false)
-    }
-  }, [compactas])
-
-  function guardar(cambios: DetallesAlerta) {
-    if (!ciudadano) {
-      return
-    }
-    // Se envía todo lo contestado hasta ahora, así una respuesta nueva nunca borra la anterior.
-    const detalles: DetallesAlerta = {
-      cantidadAfectados: afectados ?? undefined,
-      descripcion: descripcion.trim() || undefined,
-      ...cambios,
-    }
-    completar.mutate({ ciudadanoId: ciudadano.id, alertaId, detalles })
-  }
-
-  function elegirAfectados(valor: number) {
-    setAfectados(valor)
-    setAbiertaAfectados(false)
-    guardar({ cantidadAfectados: valor })
-  }
-
-  function escribir(texto: string) {
-    setDescripcion(texto)
-    clearTimeout(temporizador.current)
-    temporizador.current = setTimeout(() => guardarTexto(texto), ESPERA_AL_ESCRIBIR_MS)
-  }
-
-  function guardarTexto(texto: string) {
-    const limpio = texto.trim()
-    if (limpio === ultimoTextoGuardado.current) {
-      return
-    }
-    ultimoTextoGuardado.current = limpio
-    guardar({ descripcion: limpio || undefined })
-  }
-
-  function terminarDeEscribir() {
-    clearTimeout(temporizador.current)
-    guardarTexto(descripcion)
-    if (descripcion.trim()) {
-      setAbiertaQuePaso(false)
-    }
-  }
-
-  // PB-02 R3: los detalles nunca bloquean nada. Si ya no se aceptan, las preguntas desaparecen sin decir nada.
+  // Los detalles nunca bloquean nada: si el servidor ya no los acepta, la sección desaparece sin decir nada.
   const yaNoSeAceptan = completar.error instanceof ErrorApi && completar.error.status === 409
   if (!ciudadano || yaNoSeAceptan) {
     return null
+  }
+
+  // Una sola vez por alerta: cuenta lo enviado desde esta pantalla y lo anotado antes de cerrar la app.
+  if (completar.isSuccess || (enCurso?.alertaId === alertaId && enCurso.detallesEnviados)) {
+    return <DatosEnviados />
   }
 
   return (
@@ -105,117 +56,179 @@ export function PreguntasIncidente({ alertaId, compactas }: Props) {
         Opcional · ayuda a quien te atiende
       </Text>
 
-      {abiertaAfectados ? (
-        <YStack gap={12} p={16} rounded={16} borderWidth={1} borderColor="$borde" bg="$superficie">
-          <Text color="$texto" fontSize={16} lineHeight={22} fontWeight="600">
-            ¿Cuántas personas necesitan ayuda?
-          </Text>
-          <XStack gap={8}>
-            {OPCIONES_AFECTADOS.map((opcion) => (
+      <YStack gap={18} p={16} rounded={16} borderWidth={1} borderColor="$borde" bg="$superficie">
+        <form.Field name="paraQuien">
+          {(campo) => (
+            <YStack gap={10}>
+              <Text color="$texto" fontSize={16} lineHeight={22} fontWeight="600">
+                ¿Para quién es la ayuda?
+              </Text>
+              <XStack flexWrap="wrap" gap={8} role="radiogroup" aria-label="Para quién es la ayuda">
+                {PARA_QUIEN.map((opcion) => (
+                  <Opcion
+                    key={opcion.id}
+                    texto={opcion.texto}
+                    elegida={campo.state.value === opcion.id}
+                    onPress={() => campo.handleChange(opcion.id)}
+                  />
+                ))}
+              </XStack>
+            </YStack>
+          )}
+        </form.Field>
+
+        <form.Field name="tipo">
+          {(campo) => (
+            <YStack gap={10}>
+              <Text color="$texto" fontSize={16} lineHeight={22} fontWeight="600">
+                ¿Qué pasó?
+              </Text>
+              <XStack flexWrap="wrap" gap={8} role="radiogroup" aria-label="Qué pasó">
+                {TIPOS_DE_EMERGENCIA.map((opcion) => (
+                  <Opcion
+                    key={opcion.id}
+                    // "…" avisa que esa opción pide escribir algo más.
+                    texto={opcion.id === TIPO_OTRO ? `${opcion.texto}…` : opcion.texto}
+                    etiqueta={opcion.texto}
+                    elegida={campo.state.value === opcion.id}
+                    onPress={() => campo.handleChange(opcion.id)}
+                  />
+                ))}
+              </XStack>
+              {campo.state.value === TIPO_OTRO ? (
+                <form.Field name="otro">
+                  {(campoOtro) => (
+                    <Input
+                      value={campoOtro.state.value}
+                      onChangeText={campoOtro.handleChange}
+                      onBlur={campoOtro.handleBlur}
+                      placeholder="Cuéntalo en pocas palabras"
+                      placeholderTextColor="$textoTenue"
+                      maxLength={LARGO_MAXIMO_OTRO}
+                      height={48}
+                      rounded={12}
+                      fontSize={15}
+                      bg="$fondo"
+                      borderColor="$borde"
+                      returnKeyType="done"
+                      aria-label="Qué pasó, en pocas palabras"
+                    />
+                  )}
+                </form.Field>
+              ) : null}
+            </YStack>
+          )}
+        </form.Field>
+
+        <form.Field name="afectados">
+          {(campo) => (
+            <YStack gap={10}>
+              <Text color="$texto" fontSize={16} lineHeight={22} fontWeight="600">
+                ¿Cuántas personas necesitan ayuda?
+              </Text>
+              <XStack gap={8} role="radiogroup" aria-label="Cuántas personas necesitan ayuda">
+                {OPCIONES_AFECTADOS.map((opcion) => (
+                  <Opcion
+                    key={opcion.valor}
+                    texto={opcion.texto}
+                    etiqueta={opcion.etiqueta}
+                    elegida={campo.state.value === opcion.valor}
+                    parejo
+                    onPress={() => campo.handleChange(opcion.valor)}
+                  />
+                ))}
+              </XStack>
+            </YStack>
+          )}
+        </form.Field>
+
+        <YStack gap={8}>
+          <form.Subscribe selector={(estado) => hayRespuestas(detallesDeRespuestas(estado.values))}>
+            {(conRespuestas) => (
               <Button
-                key={opcion.valor}
-                flex={1}
-                height={60}
-                p={0}
+                height={52}
                 rounded={14}
-                bg={afectados === opcion.valor ? '$primario' : '$fondo'}
-                borderColor={afectados === opcion.valor ? '$primario' : '$borde'}
-                aria-label={opcion.etiqueta}
-                onPress={() => elegirAfectados(opcion.valor)}
+                borderWidth={0}
+                bg="$texto"
+                pressStyle={{ bg: '$textoSecundario' }}
+                disabled={!conRespuestas || completar.isPending}
+                opacity={conRespuestas ? 1 : 0.35}
+                icon={completar.isPending ? <Spinner color="$fondo" /> : undefined}
+                aria-busy={completar.isPending}
+                onPress={() => form.handleSubmit().catch(() => {})}
               >
-                <Button.Text
-                  color={afectados === opcion.valor ? '$primarioTexto' : '$texto'}
-                  fontSize={15}
-                  lineHeight={19}
-                  fontWeight="600"
-                  text="center"
-                >
-                  {opcion.texto}
+                <Button.Text color="$fondo" fontSize={16} fontWeight="600">
+                  {completar.isPending ? 'Enviando…' : 'Enviar'}
                 </Button.Text>
               </Button>
-            ))}
-          </XStack>
+            )}
+          </form.Subscribe>
+          {/* Cualquier otro error: el botón queda disponible para reintentar con las mismas respuestas. */}
+          {completar.isError ? (
+            <Paragraph color="$enAtencionTexto" fontSize={13} lineHeight={18} text="center" role="alert">
+              No se pudieron enviar los datos
+            </Paragraph>
+          ) : null}
         </YStack>
-      ) : (
-        <FilaPregunta
-          pregunta="¿Cuántas personas necesitan ayuda?"
-          respuesta={afectados === null ? null : (OPCIONES_AFECTADOS.find((o) => o.valor === afectados)?.texto ?? null)}
-          onPress={() => setAbiertaAfectados(true)}
-        />
-      )}
-
-      {abiertaQuePaso ? (
-        <YStack gap={10} p={16} rounded={16} borderWidth={1} borderColor="$borde" bg="$superficie">
-          <Text color="$texto" fontSize={16} lineHeight={22} fontWeight="600">
-            ¿Qué pasó?
-          </Text>
-          <TextArea
-            value={descripcion}
-            onChangeText={escribir}
-            onBlur={terminarDeEscribir}
-            placeholder="Cuéntalo con tus palabras"
-            placeholderTextColor="$textoTenue"
-            maxLength={LARGO_MAXIMO_DESCRIPCION}
-            minH={72}
-            rounded={12}
-            fontSize={15}
-            bg="$fondo"
-            borderColor="$borde"
-            aria-label="Qué pasó"
-          />
-        </YStack>
-      ) : (
-        <FilaPregunta
-          pregunta="¿Qué pasó?"
-          respuesta={descripcion.trim() || null}
-          onPress={() => setAbiertaQuePaso(true)}
-        />
-      )}
+      </YStack>
     </YStack>
   )
 }
 
-type PropsFila = {
-  pregunta: string
-  /** `null` si todavía no contestó: entonces la fila muestra la pregunta. */
-  respuesta: string | null
+type PropsOpcion = {
+  texto: string
+  elegida: boolean
+  /** Lo que lee el lector de pantalla si el texto visible no basta. */
+  etiqueta?: string
+  /** Reparte el ancho de la fila en partes iguales: para respuestas cortas, como los números. */
+  parejo?: boolean
   onPress: () => void
 }
 
-/** Pregunta colapsada. Contestada o no, se vuelve a abrir con un toque para corregirla. */
-function FilaPregunta({ pregunta, respuesta, onPress }: PropsFila) {
+/** Respuesta de un toque. Funciona como un botón de radio: elegir otra reemplaza la anterior. */
+function Opcion({ texto, elegida, etiqueta, parejo = false, onPress }: PropsOpcion) {
+  return (
+    <Button
+      flex={parejo ? 1 : undefined}
+      height={44}
+      px={parejo ? 0 : 14}
+      rounded={12}
+      borderWidth={1}
+      bg={elegida ? '$primario' : '$fondo'}
+      borderColor={elegida ? '$primario' : '$borde'}
+      pressStyle={elegida ? { bg: '$primarioPresionado', borderColor: '$primarioPresionado' } : { bg: '$borde' }}
+      role="radio"
+      aria-checked={elegida}
+      aria-label={etiqueta ?? texto}
+      onPress={onPress}
+    >
+      <Button.Text color={elegida ? '$primarioTexto' : '$texto'} fontSize={15} fontWeight={elegida ? '600' : '500'}>
+        {texto}
+      </Button.Text>
+    </Button>
+  )
+}
+
+/** Los detalles ya salieron: solo queda la confirmación, sin nada que editar. */
+function DatosEnviados() {
   const tema = useTheme()
 
   return (
     <XStack
       items="center"
-      gap={12}
+      gap={8}
       px={16}
-      py={13}
+      py={14}
       rounded={14}
       borderWidth={1}
       borderColor="$borde"
       bg="$superficie"
-      pressStyle={{ bg: '$fondo' }}
-      role="button"
-      aria-label={respuesta ? `${pregunta} ${respuesta}. Tocar para corregir` : pregunta}
-      onPress={onPress}
+      aria-live="polite"
     >
-      <YStack flex={1} minW={0} gap={respuesta ? 2 : 0}>
-        <Text color={respuesta ? '$textoSecundario' : '$texto'} fontSize={respuesta ? 12 : 15} numberOfLines={1}>
-          {pregunta}
-        </Text>
-        {respuesta ? (
-          <Text color="$texto" fontSize={15} fontWeight="500" numberOfLines={1}>
-            {respuesta}
-          </Text>
-        ) : null}
-      </YStack>
-      <Feather
-        name={respuesta ? 'check' : 'chevron-down'}
-        size={18}
-        color={respuesta ? tema.disponible?.val : tema.textoSecundario?.val}
-      />
+      <Text color="$texto" fontSize={15} fontWeight="500">
+        Datos enviados
+      </Text>
+      <Feather name="check" size={18} color={tema.disponible?.val} />
     </XStack>
   )
 }

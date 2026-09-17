@@ -27,6 +27,15 @@ export function recordarSeguimiento(queryClient: QueryClient, seguimiento: Segui
   return guardarSeguimiento(seguimiento)
 }
 
+/** Los detalles de la alerta ya salieron: queda anotado en el caso guardado, si sigue siendo el de esa alerta. */
+export async function recordarDetallesEnviados(queryClient: QueryClient, alertaId: number) {
+  const enCurso = queryClient.getQueryData(seguimientoEnCursoQuery().queryKey) ?? (await leerSeguimientoGuardado())
+  if (enCurso?.alertaId !== alertaId) {
+    return
+  }
+  await recordarSeguimiento(queryClient, { ...enCurso, detallesEnviados: true })
+}
+
 /** PB-06 R4: el incidente llegó a un estado final, así que ya no hay caso al que volver. */
 export async function olvidarSeguimiento(queryClient: QueryClient) {
   await borrarSeguimientoGuardado()

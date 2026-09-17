@@ -13,6 +13,8 @@ export type SeguimientoGuardado = {
   latitud: number
   longitud: number
   origen: OrigenUbicacion
+  /** Los detalles opcionales ya salieron (PB-02 R3): al volver al caso no se preguntan ni se envían otra vez. */
+  detallesEnviados?: boolean
 }
 
 /**
