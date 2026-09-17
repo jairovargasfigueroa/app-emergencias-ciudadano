@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StyleSheet, useColorScheme } from 'react-native'
 import MapView, { type Region } from 'react-native-maps'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -11,24 +11,30 @@ import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
 import { AvisoAlertaNoEnviada } from './AvisoAlertaNoEnviada'
-import { obtenerUbicacionGps, ultimaUbicacionConocida, type Coordenadas } from './ubicacion'
+import { obtenerUbicacionGps, ultimaUbicacionReciente, type Coordenadas } from './ubicacion'
 import { useEnviarAlerta } from './useEnviarAlerta'
 
-/** Centro del mapa si el teléfono no conoce ninguna posición. Se configura en .env.local. */
-const CENTRO_POR_DEFECTO: Coordenadas = {
-  latitud: numeroDeEntorno(process.env.EXPO_PUBLIC_MAPA_LATITUD),
-  longitud: numeroDeEntorno(process.env.EXPO_PUBLIC_MAPA_LONGITUD),
-}
+/** Ciudad donde opera el servicio, o `null` si no está configurada o no es válida. Se configura en .env.local. */
+const CIUDAD = coordenadasDeEntorno(process.env.EXPO_PUBLIC_MAPA_LATITUD, process.env.EXPO_PUBLIC_MAPA_LONGITUD)
 
-/** Acercamiento del mapa: a nivel de calle si hay una posición conocida; si no, la ciudad entera. */
+/** Acercamiento del mapa: a nivel de calle si hay una posición reciente; si no, la ciudad entera. */
 const DELTA_CALLE = 0.005
 const DELTA_CIUDAD = 0.08
 
+/** Sin ciudad configurada, Bolivia entera: el mapa nunca arranca en (0, 0). */
+const REGION_BOLIVIA: Region = { latitude: -16.3, longitude: -63.6, latitudeDelta: 14, longitudeDelta: 14 }
+
 const ALTO_PIN = 52
 
-function numeroDeEntorno(valor: string | undefined) {
-  const numero = Number(valor)
-  return valor && Number.isFinite(numero) ? numero : 0
+function coordenadasDeEntorno(latitud: string | undefined, longitud: string | undefined): Coordenadas | null {
+  if (!latitud?.trim() || !longitud?.trim()) {
+    return null
+  }
+  const lat = Number(latitud)
+  const lon = Number(longitud)
+  // Fuera de rango también descarta lo que no es número; (0, 0) es un valor sin configurar, no una ciudad.
+  const validas = Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0)
+  return validas ? { latitud: lat, longitud: lon } : null
 }
 
 function regionAlrededorDe({ latitud, longitud }: Coordenadas, delta: number): Region {
@@ -42,6 +48,8 @@ function irAlSeguimiento(seguimiento: SeguimientoGuardado) {
 /**
  * PB-02 R2 y CA-02: sin GPS, el ciudadano mueve el mapa hasta dejar el pin donde está y la alerta sale con origen
  * MANUAL. Nunca se rechaza por falta de GPS. Aquí basta un toque: ya hubo intención y se perdieron varios segundos.
+ * Tampoco se envía un punto que la persona no puso: sin una posición reciente del teléfono, el pin espera gris hasta
+ * que mueva el mapa.
  */
 export function PantallaPin() {
   const margenes = useSafeAreaInsets()
@@ -53,22 +61,41 @@ export function PantallaPin() {
 
   const [regionInicial, setRegionInicial] = useState<Region | null>(null)
   const [centro, setCentro] = useState<Coordenadas | null>(null)
+  // El punto es de la persona: arrancó en su posición reciente o movió el mapa con el dedo.
+  const [ubicado, setUbicado] = useState(false)
   const [buscandoGps, setBuscandoGps] = useState(false)
+  const arrastroElMapa = useRef(false)
 
   useEffect(() => {
     let vigente = true
-    ultimaUbicacionConocida().then((ultima) => {
+    ultimaUbicacionReciente().then((reciente) => {
       if (!vigente) {
         return
       }
-      const inicio = ultima ?? CENTRO_POR_DEFECTO
-      setRegionInicial(regionAlrededorDe(inicio, ultima ? DELTA_CALLE : DELTA_CIUDAD))
-      setCentro(inicio)
+      if (reciente) {
+        setRegionInicial(regionAlrededorDe(reciente, DELTA_CALLE))
+        setCentro(reciente)
+        setUbicado(true)
+      } else {
+        // Sin posición reciente o sin permiso no hay punto que enviar: el mapa muestra la zona y espera a la persona.
+        setRegionInicial(CIUDAD ? regionAlrededorDe(CIUDAD, DELTA_CIUDAD) : REGION_BOLIVIA)
+      }
     })
     return () => {
       vigente = false
     }
   }, [])
+
+  /**
+   * Cuenta solo el movimiento hecho por la persona, no el encuadre inicial del mapa. Google Maps (Android) lo informa
+   * con `isGesture`; Apple Maps no, así que ahí vale que haya arrastrado el dedo sobre el mapa antes de que se detenga.
+   */
+  function alDetenerseElMapa(region: Region, detalles: { isGesture?: boolean }) {
+    setCentro({ latitud: region.latitude, longitud: region.longitude })
+    if (detalles.isGesture || arrastroElMapa.current) {
+      setUbicado(true)
+    }
+  }
 
   async function reintentarGps() {
     empezarIntento()
@@ -83,6 +110,9 @@ export function PantallaPin() {
   }
 
   const ocupado = enviando || buscandoGps
+  const listoParaEnviar = ubicado && centro !== null
+  // Mientras sale una alerta (también la del GPS) el botón muestra el envío; sin punto de la persona queda apagado.
+  const botonActivo = listoParaEnviar || enviando
 
   return (
     <YStack flex={1} bg="$fondo">
@@ -90,7 +120,10 @@ export function PantallaPin() {
         <MapView
           style={StyleSheet.absoluteFill}
           initialRegion={regionInicial}
-          onRegionChangeComplete={(region) => setCentro({ latitud: region.latitude, longitud: region.longitude })}
+          onTouchMove={() => {
+            arrastroElMapa.current = true
+          }}
+          onRegionChangeComplete={alDetenerseElMapa}
           rotateEnabled={false}
           pitchEnabled={false}
           toolbarEnabled={false}
@@ -102,10 +135,14 @@ export function PantallaPin() {
         </YStack>
       )}
 
-      {/* El pin queda fijo en el centro del mapa: la punta marca el punto que se envía. */}
+      {/* El pin queda fijo en el centro del mapa: la punta marca el punto que se envía. Gris hasta estar ubicado. */}
       <YStack position="absolute" t={0} b={0} l={0} r={0} items="center" justify="center" pointerEvents="none">
         <YStack height={ALTO_PIN * 2} items="center">
-          <MaterialCommunityIcons name="map-marker" size={ALTO_PIN} color={tema.primario?.val} />
+          <MaterialCommunityIcons
+            name="map-marker"
+            size={ALTO_PIN}
+            color={ubicado ? tema.primario?.val : tema.textoSecundario?.val}
+          />
         </YStack>
       </YStack>
 
@@ -171,19 +208,22 @@ export function PantallaPin() {
           </Paragraph>
         ) : null}
         <BotonPrincipal
-          disabled={!centro || ocupado}
-          opacity={!centro || ocupado ? 0.7 : 1}
+          disabled={!listoParaEnviar || ocupado}
+          bg={botonActivo ? '$primario' : '$borde'}
+          opacity={botonActivo && ocupado ? 0.7 : 1}
           icon={enviando ? <Spinner color="$primarioTexto" /> : undefined}
-          aria-label="Enviar la alerta con este punto"
-          onPress={() => centro && enviar(centro, 'MANUAL')}
+          aria-label={listoParaEnviar ? 'Enviar la alerta con este punto' : 'Mueve el mapa hasta donde estás'}
+          onPress={() => ubicado && centro && enviar(centro, 'MANUAL')}
         >
-          <Button.Text color="$primarioTexto" fontSize={17} fontWeight="600">
-            {enviando ? 'Enviando…' : 'Enviar alerta aquí'}
+          <Button.Text color={botonActivo ? '$primarioTexto' : '$textoSecundario'} fontSize={17} fontWeight="600">
+            {enviando ? 'Enviando…' : listoParaEnviar ? 'Enviar alerta aquí' : 'Mueve el mapa hasta donde estás'}
           </Button.Text>
         </BotonPrincipal>
-        <Paragraph color="$textoTenue" fontSize={13} lineHeight={18} text="center">
-          Un toque y la ayuda sale con este punto.
-        </Paragraph>
+        {listoParaEnviar ? (
+          <Paragraph color="$textoTenue" fontSize={13} lineHeight={18} text="center">
+            Un toque y la ayuda sale con este punto.
+          </Paragraph>
+        ) : null}
         <Button
           height={48}
           rounded={14}

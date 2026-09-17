@@ -11,6 +11,9 @@ export type EstadoGps = 'listo' | 'sinPermiso' | 'apagado'
 /** Espera máxima por la posición antes de pasar al pin manual (PB-02 R2). */
 const ESPERA_MAXIMA_GPS_MS = 10_000
 
+/** Antigüedad máxima de la última posición conocida para arrancar ahí el mapa del pin. Se configura en .env.local. */
+const EDAD_MAXIMA_UBICACION_MIN = minutosDeEntorno(process.env.EXPO_PUBLIC_EDAD_MAXIMA_UBICACION_MIN)
+
 /**
  * Pide el permiso de ubicación si nunca se preguntó. Se llama al abrir la pantalla del botón para que, al
  * presionarlo, no aparezca ningún diálogo en medio (PB-02 CA-01).
@@ -82,14 +85,17 @@ async function encenderUbicacion() {
   return Location.hasServicesEnabledAsync()
 }
 
-/** Última posición que conoce el teléfono, para centrar el mapa del pin. Puede ser vieja o no existir. */
-export async function ultimaUbicacionConocida(): Promise<Coordenadas | null> {
+/**
+ * Última posición que conoce el teléfono, para arrancar ahí el mapa del pin. `null` si no hay permiso, no existe o es
+ * más vieja que la edad máxima: un punto viejo no se da por bueno.
+ */
+export async function ultimaUbicacionReciente(): Promise<Coordenadas | null> {
   try {
     const permiso = await Location.getForegroundPermissionsAsync()
     if (!permiso.granted) {
       return null
     }
-    const posicion = await Location.getLastKnownPositionAsync()
+    const posicion = await Location.getLastKnownPositionAsync({ maxAge: EDAD_MAXIMA_UBICACION_MIN * 60_000 })
     return posicion ? coordenadasDe(posicion) : null
   } catch {
     return null
@@ -98,6 +104,11 @@ export async function ultimaUbicacionConocida(): Promise<Coordenadas | null> {
 
 function coordenadasDe(posicion: Location.LocationObject): Coordenadas {
   return { latitud: posicion.coords.latitude, longitud: posicion.coords.longitude }
+}
+
+function minutosDeEntorno(valor: string | undefined) {
+  const minutos = Number(valor)
+  return valor && Number.isFinite(minutos) && minutos > 0 ? minutos : 5
 }
 
 /** expo-location no tiene opción de tiempo máximo: si la promesa no termina a tiempo, devuelve `null`. */
