@@ -10,6 +10,7 @@ import { DEMO } from '@/features/demo/bandera'
 import { ciudadanoQuery } from '@/features/registro/queries'
 import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
+import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
 import { MarcaSga } from '@/shared/ui/MarcaSga'
 
 import { AvisoAlertaNoEnviada } from './AvisoAlertaNoEnviada'
@@ -32,12 +33,22 @@ export function PantallaAlerta() {
   const queryClient = useQueryClient()
   const ciudadano = useQuery(ciudadanoQuery()).data
   const estadoGps = useQuery(estadoGpsQuery())
+  const enCurso = useQuery(seguimientoEnCursoQuery()).data
   const { enviar, empezarIntento, reintentar, enviando, esperandoConexion, rechazada } =
     useEnviarAlerta(irAlSeguimiento)
   const [buscandoUbicacion, setBuscandoUbicacion] = useState(false)
   const [ofrecerMapa, setOfrecerMapa] = useState(false)
   // Identifica el intento en curso: si el ciudadano se va al mapa, el GPS que llegue tarde se descarta.
   const intento = useRef(0)
+  // Una sola navegación por visita: el caso recién emitido y el ya guardado llevan al mismo seguimiento.
+  const abriendoSeguimiento = useRef(false)
+
+  useEffect(() => {
+    // PB-06: con un caso abierto en el teléfono no se pide ayuda otra vez; el inicio devuelve a su seguimiento.
+    if (enCurso) {
+      irAlSeguimiento(enCurso)
+    }
+  }, [enCurso])
 
   useEffect(() => {
     prepararPermisoDeUbicacion()
@@ -79,6 +90,20 @@ export function PantallaAlerta() {
     intento.current += 1
     setBuscandoUbicacion(false)
     router.push('/pin')
+  }
+
+  /** El seguimiento reemplaza al inicio en vez de apilarse: volver atrás no debe devolver al botón (PB-06). */
+  function irAlSeguimiento(seguimiento: SeguimientoGuardado) {
+    if (abriendoSeguimiento.current) {
+      return
+    }
+    abriendoSeguimiento.current = true
+    abrirSeguimiento(seguimiento, { reemplazar: true })
+  }
+
+  // Mientras se abre el seguimiento no se pinta nada del botón: sería una segunda alerta del mismo caso.
+  if (enCurso) {
+    return <YStack flex={1} bg="$fondo" />
   }
 
   const aviso = esperandoConexion ? 'Sin conexión. La alerta se enviará en cuanto vuelva la señal.' : null
@@ -136,8 +161,4 @@ export function PantallaAlerta() {
       </YStack>
     </ScrollView>
   )
-}
-
-function irAlSeguimiento(seguimiento: SeguimientoGuardado) {
-  abrirSeguimiento(seguimiento)
 }
