@@ -38,6 +38,7 @@ export async function recordarDetallesEnviados(queryClient: QueryClient, alertaI
 
 /** PB-06 R4: el incidente llegó a un estado final, así que ya no hay caso al que volver. */
 export async function olvidarSeguimiento(queryClient: QueryClient) {
-  await borrarSeguimientoGuardado()
+  // Primero la caché: el inicio la mira para decidir si devuelve al seguimiento, y no debe esperar al almacén.
   queryClient.setQueryData(seguimientoKeys.enCurso, null)
+  await borrarSeguimientoGuardado()
 }

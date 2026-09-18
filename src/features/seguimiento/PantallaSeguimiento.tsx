@@ -3,9 +3,11 @@ import { useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { YStack } from 'tamagui'
+import { XStack, YStack } from 'tamagui'
 
 import type { Coordenadas } from '@/features/alerta/ubicacion'
+import { BotonDemo } from '@/features/demo/BotonDemo'
+import { DEMO } from '@/features/demo/bandera'
 import { useAhora } from '@/shared/reloj/useAhora'
 
 import { HojaBuscando } from './HojaBuscando'
@@ -78,6 +80,13 @@ export function PantallaSeguimiento() {
         margenInferior={altoHoja}
         ahora={ahora}
       />
+
+      {/* El botón del modo demostración vive en el inicio, y con un caso abierto el inicio ya no se ve. */}
+      {DEMO ? (
+        <XStack position="absolute" t={margenes.top + 12} l={16} z={1}>
+          <BotonDemo />
+        </XStack>
+      ) : null}
 
       <YStack
         position="absolute"
