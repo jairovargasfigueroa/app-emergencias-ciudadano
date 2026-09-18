@@ -3,8 +3,10 @@ import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, H1, Paragraph, Text, YStack } from 'tamagui'
+import { Button, H1, Paragraph, Text, XStack, YStack } from 'tamagui'
 
+import { BotonDemo } from '@/features/demo/BotonDemo'
+import { DEMO } from '@/features/demo/bandera'
 import { ciudadanoQuery } from '@/features/registro/queries'
 import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
@@ -84,7 +86,10 @@ export function PantallaAlerta() {
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
       <YStack flex={1} bg="$fondo" px={24} pt={margenes.top + 16} pb={margenes.bottom + 20} gap={20}>
-        <MarcaSga tamano={32} />
+        <XStack items="center" justify="space-between">
+          <MarcaSga tamano={32} />
+          {DEMO ? <BotonDemo /> : null}
+        </XStack>
 
         {estadoGps.data ? <EstadoGps estado={estadoGps.data} /> : null}
 

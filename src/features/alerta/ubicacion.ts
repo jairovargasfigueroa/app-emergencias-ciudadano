@@ -1,6 +1,9 @@
 import * as Location from 'expo-location'
 import { Platform } from 'react-native'
 
+import { DEMO } from '@/features/demo/bandera'
+import { posicionSimulada } from '@/features/demo/simulador'
+
 export type Coordenadas = {
   latitud: number
   longitud: number
@@ -26,6 +29,9 @@ export async function prepararPermisoDeUbicacion() {
 }
 
 export async function consultarEstadoGps(): Promise<EstadoGps> {
+  if (ubicacionDeDemostracion()) {
+    return 'listo'
+  }
   const permiso = await Location.getForegroundPermissionsAsync()
   if (!permiso.granted) {
     // Negado para siempre: el sistema ya no deja volver a preguntar, solo se activa en los ajustes.
@@ -40,6 +46,10 @@ export async function consultarEstadoGps(): Promise<EstadoGps> {
  * permiso y GPS encendido no aparece ningún cuadro del sistema (PB-02 CA-01).
  */
 export async function obtenerUbicacionGps(): Promise<Coordenadas | null> {
+  const simulada = ubicacionDeDemostracion()
+  if (simulada) {
+    return simulada
+  }
   try {
     if (!(await conseguirPermiso()) || !(await encenderUbicacion())) {
       return null
@@ -91,6 +101,10 @@ async function encenderUbicacion() {
  * más vieja que la edad máxima: un punto viejo no se da por bueno.
  */
 export async function ultimaUbicacionReciente(): Promise<Coordenadas | null> {
+  const simulada = ubicacionDeDemostracion()
+  if (simulada) {
+    return simulada
+  }
   try {
     const permiso = await Location.getForegroundPermissionsAsync()
     if (!permiso.granted) {
@@ -105,6 +119,11 @@ export async function ultimaUbicacionReciente(): Promise<Coordenadas | null> {
 
 function coordenadasDe(posicion: Location.LocationObject): Coordenadas {
   return { latitud: posicion.coords.latitude, longitud: posicion.coords.longitude }
+}
+
+/** En modo demostración la posición sale del punto o recorrido cargado, y el GPS del teléfono no se toca. */
+function ubicacionDeDemostracion(): Coordenadas | null {
+  return DEMO ? posicionSimulada() : null
 }
 
 function minutosDeEntorno(valor: string | undefined) {
