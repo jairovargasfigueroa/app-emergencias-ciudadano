@@ -34,7 +34,7 @@ export function PreguntasIncidente({ alertaId }: { alertaId: number }) {
     onSubmit: ({ value }) => {
       const detalles = detallesDeRespuestas(value)
       if (ciudadano && hayRespuestas(detalles) && !completar.isPending) {
-        completar.mutate({ ciudadanoId: ciudadano.id, alertaId, detalles })
+        completar.mutate({ alertaId, detalles })
       }
     },
   })

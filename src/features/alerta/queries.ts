@@ -19,20 +19,14 @@ export const estadoGpsQuery = () =>
     retry: false,
   })
 
-export type EmitirAlerta = {
-  ciudadanoId: number
-  datos: CrearAlerta
-}
-
 /** `POST /alertas`. Sin conexión, TanStack Query la deja en pausa y la envía cuando vuelve la señal. */
 export const emitirAlertaMutation = () =>
   mutationOptions({
     mutationKey: ['alertas', 'emitir'],
-    mutationFn: ({ ciudadanoId, datos }: EmitirAlerta) => alertaApi.emitir(ciudadanoId, datos),
+    mutationFn: (datos: CrearAlerta) => alertaApi.emitir(datos),
   })
 
 export type CompletarDetalles = {
-  ciudadanoId: number
   alertaId: number
   detalles: DetallesAlerta
 }
@@ -44,8 +38,7 @@ export type CompletarDetalles = {
 export const completarDetallesMutation = (queryClient: QueryClient) =>
   mutationOptions({
     mutationKey: ['alertas', 'detalles'],
-    mutationFn: ({ ciudadanoId, alertaId, detalles }: CompletarDetalles) =>
-      alertaApi.completarDetalles(ciudadanoId, alertaId, detalles),
+    mutationFn: ({ alertaId, detalles }: CompletarDetalles) => alertaApi.completarDetalles(alertaId, detalles),
     onSuccess: (_alerta, { alertaId }) => {
       // Sin esperar ni propagar: si el teléfono no logra guardarlo, el envío igual salió bien.
       recordarDetallesEnviados(queryClient, alertaId).catch(() => {})

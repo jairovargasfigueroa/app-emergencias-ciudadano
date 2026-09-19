@@ -1,37 +1,32 @@
 import { mutationOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
 
-import { borrarCiudadanoGuardado, guardarCiudadano, leerCiudadanoGuardado } from './almacen'
-import { registroApi, type RegistrarCiudadano } from './api'
+import { guardarSesion } from '@/shared/sesion/almacen'
+import { cerrarSesion, sesionKeys, sesionQuery } from '@/shared/sesion/queries'
 
-export const registroKeys = {
-  ciudadano: ['ciudadano'] as const,
-}
+import { registroApi, type Ciudadano, type RegistrarCiudadano } from './api'
 
-/** Ciudadano registrado en este teléfono, o `null`. Se lee del almacén local: no depende de la conexión. */
+/** Ciudadano registrado en este teléfono, o `null`: es la sesión guardada, vista desde el registro. */
 export const ciudadanoQuery = () =>
   queryOptions({
-    queryKey: registroKeys.ciudadano,
-    queryFn: leerCiudadanoGuardado,
-    networkMode: 'always',
-    staleTime: Infinity,
-    gcTime: Infinity,
+    ...sesionQuery<Ciudadano>(),
+    select: (sesion) => sesion?.usuario ?? null,
   })
 
-/** PB-02 R1: registro ligero. Al terminar, la app habilita el botón de alerta. */
+/** PB-02 R1: registro ligero. Al terminar, la app queda con sesión y habilita el botón de alerta. */
 export const registrarCiudadanoMutation = (queryClient: QueryClient) =>
   mutationOptions({
     mutationFn: async (datos: RegistrarCiudadano) => {
-      const ciudadano = await registroApi.registrar(datos)
-      await guardarCiudadano(ciudadano)
-      return ciudadano
+      const { token, ciudadano } = await registroApi.registrar(datos)
+      const sesion = { token, usuario: ciudadano }
+      await guardarSesion(sesion)
+      return sesion
     },
-    onSuccess: (ciudadano) => {
-      queryClient.setQueryData(registroKeys.ciudadano, ciudadano)
+    onSuccess: (sesion) => {
+      queryClient.setQueryData(sesionKeys.actual, sesion)
     },
   })
 
-/** Borra el registro guardado cuando el backend ya no reconoce al ciudadano: la app vuelve a pedirlo. */
-export async function olvidarCiudadano(queryClient: QueryClient) {
-  await borrarCiudadanoGuardado()
-  queryClient.setQueryData(registroKeys.ciudadano, null)
+/** Cierra la sesión cuando el backend ya no reconoce al ciudadano: la app vuelve a pedir el registro. */
+export function olvidarCiudadano(queryClient: QueryClient) {
+  return cerrarSesion(queryClient)
 }

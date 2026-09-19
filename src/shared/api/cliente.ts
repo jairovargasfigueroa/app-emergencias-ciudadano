@@ -1,3 +1,5 @@
+import { tokenActual } from '@/shared/sesion/almacen'
+
 /** Error de validación de un campo, tal como lo envía el backend. */
 export type ErrorDeCampo = {
   campo: string
@@ -30,23 +32,25 @@ export class ErrorApi extends Error {
 /** URL del backend, p. ej. http://192.168.0.10:8080 (el teléfono no entiende "localhost"). */
 const URL_BASE = process.env.EXPO_PUBLIC_API_URL ?? ''
 
-/** Cabecera provisional con el id del usuario mientras no exista autenticación. */
-const CABECERA_USUARIO = 'X-Usuario-Id'
-
 type OpcionesPedido = {
   metodo?: 'GET' | 'POST'
   cuerpo?: unknown
-  usuarioId?: number
+  /** Solo para las rutas de `/auth`: son las únicas que se llaman sin sesión abierta. */
+  sinToken?: boolean
   signal?: AbortSignal
 }
 
-async function pedir<T>(ruta: string, { metodo = 'GET', cuerpo, usuarioId, signal }: OpcionesPedido = {}): Promise<T> {
+async function pedir<T>(ruta: string, { metodo = 'GET', cuerpo, sinToken, signal }: OpcionesPedido = {}): Promise<T> {
   const cabeceras: Record<string, string> = { Accept: 'application/json' }
   if (cuerpo !== undefined) {
     cabeceras['Content-Type'] = 'application/json'
   }
-  if (usuarioId !== undefined) {
-    cabeceras[CABECERA_USUARIO] = String(usuarioId)
+  // La identidad sale del token firmado por el servidor: la app no la escribe.
+  if (!sinToken) {
+    const token = await tokenActual()
+    if (token) {
+      cabeceras.Authorization = `Bearer ${token}`
+    }
   }
 
   let respuesta: Response

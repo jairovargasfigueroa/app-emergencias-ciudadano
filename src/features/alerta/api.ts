@@ -23,13 +23,12 @@ export type AlertaCreada = {
 }
 
 export const alertaApi = {
-  emitir: (ciudadanoId: number, datos: CrearAlerta) =>
-    api.post<AlertaCreada>('/alertas', datos, { usuarioId: ciudadanoId }),
+  emitir: (datos: CrearAlerta) => api.post<AlertaCreada>('/alertas', datos),
 
   /**
    * Detalles opcionales de una alerta ya emitida (PB-02 R3): se contestan durante la espera y nunca bloquean nada.
    * El backend los acepta mientras el incidente siga abierto y ninguna unidad haya llegado al lugar.
    */
-  completarDetalles: (ciudadanoId: number, alertaId: number, detalles: DetallesAlerta) =>
-    api.post<AlertaCreada>(`/alertas/${alertaId}/detalles`, detalles, { usuarioId: ciudadanoId }),
+  completarDetalles: (alertaId: number, detalles: DetallesAlerta) =>
+    api.post<AlertaCreada>(`/alertas/${alertaId}/detalles`, detalles),
 }

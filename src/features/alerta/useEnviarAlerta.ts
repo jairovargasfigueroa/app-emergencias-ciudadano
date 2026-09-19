@@ -35,9 +35,9 @@ export function useEnviarAlerta(alEnviar: (seguimiento: SeguimientoGuardado) => 
       return
     }
     emitir.mutate(
-      { ciudadanoId: ciudadano.id, datos: { ...envio.coordenadas, origenUbicacion: envio.origenUbicacion } },
+      { ...envio.coordenadas, origenUbicacion: envio.origenUbicacion },
       {
-        onSuccess: (alerta, { datos }) => {
+        onSuccess: (alerta, datos) => {
           setRechazado(null)
           const enCurso: SeguimientoGuardado = {
             incidenteId: alerta.incidenteId,
