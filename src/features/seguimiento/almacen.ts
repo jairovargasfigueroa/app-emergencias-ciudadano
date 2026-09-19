@@ -15,6 +15,8 @@ export type SeguimientoGuardado = {
   origen: OrigenUbicacion
   /** Los detalles opcionales ya salieron (PB-02 R3): al volver al caso no se preguntan ni se envían otra vez. */
   detallesEnviados?: boolean
+  /** El pedido ya se retiró: el caso sigue a la vista mientras una unidad decida, pero no se retira dos veces. */
+  pedidoRetirado?: boolean
 }
 
 /**

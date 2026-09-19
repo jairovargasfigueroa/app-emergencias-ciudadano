@@ -15,6 +15,16 @@ export type DetallesAlerta = {
   descripcion?: string
 }
 
+/** `MotivoCancelacionAlerta` del backend. */
+export type MotivoRetiro = 'YA_FUE_ATENDIDO' | 'FALSA_ALARMA' | 'ERROR' | 'OTRO'
+
+/** `CancelarAlertaRequest` del backend. */
+export type RetirarPedido = {
+  motivo: MotivoRetiro
+  /** Si quien avisó es la persona que necesitaba la ambulancia. Un tercero no habla por el estado de otro. */
+  emisorEsPaciente?: boolean
+}
+
 /** `AlertaResponse` del backend. */
 export type AlertaCreada = {
   alertaId: number
@@ -31,4 +41,11 @@ export const alertaApi = {
    */
   completarDetalles: (alertaId: number, detalles: DetallesAlerta) =>
     api.post<AlertaCreada>(`/alertas/${alertaId}/detalles`, detalles),
+
+  /**
+   * Retirar el pedido. No siempre cierra el caso: si otro también avisó, o si ya hay una unidad en camino, el
+   * incidente sigue y lo resuelve quien corresponde. El backend lo rechaza si una unidad ya llegó al lugar.
+   */
+  retirar: (alertaId: number, datos: RetirarPedido) =>
+    api.post<AlertaCreada>(`/alertas/${alertaId}/cancelacion`, datos),
 }

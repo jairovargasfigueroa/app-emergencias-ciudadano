@@ -1,9 +1,14 @@
 export type EstadoIncidente = 'ACTIVO' | 'EN_ATENCION' | 'ATENDIDO' | 'FALSA_ALARMA' | 'ATENDIDO_EXTERNAMENTE' | 'CANCELADO'
 
 /** Solo se publican las atenciones activas: una unidad entregada o cancelada deja de aparecer (PB-06 R2). */
-export type EstadoAtencion = 'EN_CAMINO' | 'EN_EL_LUGAR' | 'PACIENTE_RECOGIDO'
+export type EstadoAtencion = 'EN_CAMINO' | 'EN_EL_LUGAR' | 'PACIENTE_RECOGIDO' | 'EN_HOSPITAL'
 
-const ESTADOS_ATENCION: readonly EstadoAtencion[] = ['EN_CAMINO', 'EN_EL_LUGAR', 'PACIENTE_RECOGIDO']
+const ESTADOS_ATENCION: readonly EstadoAtencion[] = [
+  'EN_CAMINO',
+  'EN_EL_LUGAR',
+  'PACIENTE_RECOGIDO',
+  'EN_HOSPITAL',
+]
 
 /** PB-06 R2: el ciudadano solo ve unidades con atención activa. Cualquier otro estado se descarta. */
 export function esEstadoAtencion(estado: unknown): estado is EstadoAtencion {

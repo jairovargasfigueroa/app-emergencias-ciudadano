@@ -12,6 +12,7 @@ const ESTADOS: Record<EstadoAtencion, { texto: string; tono: TonoInsignia }> = {
   EN_CAMINO: { texto: 'En camino', tono: 'ambar' },
   EN_EL_LUGAR: { texto: 'En el lugar', tono: 'verde' },
   PACIENTE_RECOGIDO: { texto: 'Paciente recogido', tono: 'verde' },
+  EN_HOSPITAL: { texto: 'En el hospital', tono: 'verde' },
 }
 
 /** PB-06 CA-03 y CA-05: cada unidad con su estado y qué tan reciente es su posición. */

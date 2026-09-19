@@ -36,6 +36,15 @@ export async function recordarDetallesEnviados(queryClient: QueryClient, alertaI
   await recordarSeguimiento(queryClient, { ...enCurso, detallesEnviados: true })
 }
 
+/** El pedido quedó retirado: queda anotado en el caso guardado, si sigue siendo el de esa alerta. */
+export async function recordarPedidoRetirado(queryClient: QueryClient, alertaId: number) {
+  const enCurso = queryClient.getQueryData(seguimientoEnCursoQuery().queryKey) ?? (await leerSeguimientoGuardado())
+  if (enCurso?.alertaId !== alertaId) {
+    return
+  }
+  await recordarSeguimiento(queryClient, { ...enCurso, pedidoRetirado: true })
+}
+
 /** PB-06 R4: el incidente llegó a un estado final, así que ya no hay caso al que volver. */
 export async function olvidarSeguimiento(queryClient: QueryClient) {
   // Primero la caché: el inicio la mira para decidir si devuelve al seguimiento, y no debe esperar al almacén.

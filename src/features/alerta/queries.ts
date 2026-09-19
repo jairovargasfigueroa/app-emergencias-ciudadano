@@ -1,8 +1,8 @@
 import { mutationOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
 
-import { recordarDetallesEnviados } from '@/features/seguimiento/queries'
+import { recordarDetallesEnviados, recordarPedidoRetirado } from '@/features/seguimiento/queries'
 
-import { alertaApi, type CrearAlerta, type DetallesAlerta } from './api'
+import { alertaApi, type CrearAlerta, type DetallesAlerta, type RetirarPedido } from './api'
 import { consultarEstadoGps } from './ubicacion'
 
 export const alertaKeys = {
@@ -42,5 +42,24 @@ export const completarDetallesMutation = (queryClient: QueryClient) =>
     onSuccess: (_alerta, { alertaId }) => {
       // Sin esperar ni propagar: si el teléfono no logra guardarlo, el envío igual salió bien.
       recordarDetallesEnviados(queryClient, alertaId).catch(() => {})
+    },
+  })
+
+export type RetirarPedidoDeAlerta = {
+  alertaId: number
+  datos: RetirarPedido
+}
+
+/**
+ * `POST /alertas/{alertaId}/cancelacion`. Retirar el pedido no siempre cierra el caso: si ya hay una unidad en camino
+ * sigue el seguimiento, porque la decisión de volverse es de la unidad. Por eso solo se anota que ya se retiró.
+ */
+export const retirarPedidoMutation = (queryClient: QueryClient) =>
+  mutationOptions({
+    mutationKey: ['alertas', 'retiro'],
+    mutationFn: ({ alertaId, datos }: RetirarPedidoDeAlerta) => alertaApi.retirar(alertaId, datos),
+    onSuccess: (_alerta, { alertaId }) => {
+      // Sin esperar ni propagar: si el teléfono no logra guardarlo, el retiro igual salió bien.
+      recordarPedidoRetirado(queryClient, alertaId).catch(() => {})
     },
   })
