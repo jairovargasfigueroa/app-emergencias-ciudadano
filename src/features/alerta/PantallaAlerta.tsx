@@ -3,13 +3,17 @@ import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, H1, Paragraph, Text, YStack } from 'tamagui'
+import { Button, H1, Paragraph, Text, XStack, YStack } from 'tamagui'
 
+import { BotonDemo } from '@/features/demo/BotonDemo'
+import { DEMO } from '@/features/demo/bandera'
 import { ciudadanoQuery } from '@/features/registro/queries'
 import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
+import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
 import { MarcaSga } from '@/shared/ui/MarcaSga'
 
+import { AvisoAlertaNoEnviada } from './AvisoAlertaNoEnviada'
 import { BotonPedirAyuda } from './BotonPedirAyuda'
 import { EstadoGps } from './EstadoGps'
 import { alertaKeys, estadoGpsQuery } from './queries'
@@ -20,19 +24,31 @@ import { useEnviarAlerta } from './useEnviarAlerta'
 const ESPERA_ANTES_DE_OFRECER_EL_MAPA_MS = 3000
 
 /**
- * PB-02 CA-01 y CA-02: la alerta sale con el gesto del botón, sin pantallas intermedias; si el GPS falla, no hay
- * permiso o tarda demasiado, se pasa a marcar el punto en el mapa.
+ * PB-02 CA-01 y CA-02: la alerta sale con el gesto del botón, sin pantallas intermedias. Si falta el permiso o la
+ * ubicación está apagada, primero se piden con los cuadros del sistema; si no se consiguen, el GPS falla o tarda
+ * demasiado, se pasa a marcar el punto en el mapa.
  */
 export function PantallaAlerta() {
   const margenes = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const ciudadano = useQuery(ciudadanoQuery()).data
   const estadoGps = useQuery(estadoGpsQuery())
-  const { enviar, enviando, esperandoConexion } = useEnviarAlerta(irAlSeguimiento)
+  const enCurso = useQuery(seguimientoEnCursoQuery()).data
+  const { enviar, empezarIntento, reintentar, enviando, esperandoConexion, rechazada } =
+    useEnviarAlerta(irAlSeguimiento)
   const [buscandoUbicacion, setBuscandoUbicacion] = useState(false)
   const [ofrecerMapa, setOfrecerMapa] = useState(false)
   // Identifica el intento en curso: si el ciudadano se va al mapa, el GPS que llegue tarde se descarta.
   const intento = useRef(0)
+  // Una sola navegación por visita: el caso recién emitido y el ya guardado llevan al mismo seguimiento.
+  const abriendoSeguimiento = useRef(false)
+
+  useEffect(() => {
+    // PB-06: con un caso abierto en el teléfono no se pide ayuda otra vez; el inicio devuelve a su seguimiento.
+    if (enCurso) {
+      irAlSeguimiento(enCurso)
+    }
+  }, [enCurso])
 
   useEffect(() => {
     prepararPermisoDeUbicacion()
@@ -53,7 +69,9 @@ export function PantallaAlerta() {
     if (buscandoUbicacion || enviando) {
       return
     }
+    empezarIntento()
     const mio = ++intento.current
+    // El botón queda ocupado todo el intento, también mientras están los cuadros del permiso o de encender la ubicación.
     setBuscandoUbicacion(true)
     const coordenadas = await obtenerUbicacionGps()
     if (mio !== intento.current) {
@@ -74,12 +92,29 @@ export function PantallaAlerta() {
     router.push('/pin')
   }
 
+  /** El seguimiento reemplaza al inicio en vez de apilarse: volver atrás no debe devolver al botón (PB-06). */
+  function irAlSeguimiento(seguimiento: SeguimientoGuardado) {
+    if (abriendoSeguimiento.current) {
+      return
+    }
+    abriendoSeguimiento.current = true
+    abrirSeguimiento(seguimiento, { reemplazar: true })
+  }
+
+  // Mientras se abre el seguimiento no se pinta nada del botón: sería una segunda alerta del mismo caso.
+  if (enCurso) {
+    return <YStack flex={1} bg="$fondo" />
+  }
+
   const aviso = esperandoConexion ? 'Sin conexión. La alerta se enviará en cuanto vuelva la señal.' : null
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
       <YStack flex={1} bg="$fondo" px={24} pt={margenes.top + 16} pb={margenes.bottom + 20} gap={20}>
-        <MarcaSga tamano={32} />
+        <XStack items="center" justify="space-between">
+          <MarcaSga tamano={32} />
+          {DEMO ? <BotonDemo /> : null}
+        </XStack>
 
         {estadoGps.data ? <EstadoGps estado={estadoGps.data} /> : null}
 
@@ -95,7 +130,8 @@ export function PantallaAlerta() {
 
           <BotonPedirAyuda buscando={buscandoUbicacion} enviando={enviando} onCompletar={pedirAyuda} />
 
-          <YStack items="center" gap={12} minH={44}>
+          <YStack self="stretch" items="center" gap={12} minH={44}>
+            {rechazada ? <AvisoAlertaNoEnviada reintentando={enviando} onReintentar={reintentar} /> : null}
             {aviso ? (
               <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20} text="center" aria-live="polite">
                 {aviso}
@@ -125,8 +161,4 @@ export function PantallaAlerta() {
       </YStack>
     </ScrollView>
   )
-}
-
-function irAlSeguimiento(seguimiento: SeguimientoGuardado) {
-  abrirSeguimiento(seguimiento)
 }

@@ -1,14 +1,21 @@
 import * as Location from 'expo-location'
+import { Platform } from 'react-native'
+
+import { DEMO } from '@/features/demo/bandera'
+import { posicionSimulada } from '@/features/demo/simulador'
 
 export type Coordenadas = {
   latitud: number
   longitud: number
 }
 
-export type EstadoGps = 'listo' | 'sinPermiso' | 'apagado'
+export type EstadoGps = 'listo' | 'sinPermiso' | 'permisoBloqueado' | 'apagado'
 
 /** Espera máxima por la posición antes de pasar al pin manual (PB-02 R2). */
 const ESPERA_MAXIMA_GPS_MS = 10_000
+
+/** Antigüedad máxima de la última posición conocida para arrancar ahí el mapa del pin. Se configura en .env.local. */
+const EDAD_MAXIMA_UBICACION_MIN = minutosDeEntorno(process.env.EXPO_PUBLIC_EDAD_MAXIMA_UBICACION_MIN)
 
 /**
  * Pide el permiso de ubicación si nunca se preguntó. Se llama al abrir la pantalla del botón para que, al
@@ -22,23 +29,32 @@ export async function prepararPermisoDeUbicacion() {
 }
 
 export async function consultarEstadoGps(): Promise<EstadoGps> {
+  if (ubicacionDeDemostracion()) {
+    return 'listo'
+  }
   const permiso = await Location.getForegroundPermissionsAsync()
   if (!permiso.granted) {
-    return 'sinPermiso'
+    // Negado para siempre: el sistema ya no deja volver a preguntar, solo se activa en los ajustes.
+    return permiso.canAskAgain ? 'sinPermiso' : 'permisoBloqueado'
   }
   return (await Location.hasServicesEnabledAsync()) ? 'listo' : 'apagado'
 }
 
 /**
- * Posición GPS actual, o `null` si no hay permiso, el GPS está apagado, falla o tarda demasiado. Con `null` la app
- * pide fijar el pin: la alerta nunca se rechaza por falta de GPS.
+ * Posición GPS actual, o `null` para pasar al pin: la alerta nunca se rechaza por falta de GPS (PB-02 R2). Antes de
+ * rendirse intenta lo que el teléfono permite: conseguir el permiso, encender la ubicación y esperar la posición. Con
+ * permiso y GPS encendido no aparece ningún cuadro del sistema (PB-02 CA-01).
  */
 export async function obtenerUbicacionGps(): Promise<Coordenadas | null> {
+  const simulada = ubicacionDeDemostracion()
+  if (simulada) {
+    return simulada
+  }
   try {
-    await prepararPermisoDeUbicacion()
-    if ((await consultarEstadoGps()) !== 'listo') {
+    if (!(await conseguirPermiso()) || !(await encenderUbicacion())) {
       return null
     }
+    // Paso 3: la posición, con límite de tiempo.
     const posicion = await conLimiteDeTiempo(
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
       ESPERA_MAXIMA_GPS_MS,
@@ -49,14 +65,52 @@ export async function obtenerUbicacionGps(): Promise<Coordenadas | null> {
   }
 }
 
-/** Última posición que conoce el teléfono, para centrar el mapa del pin. Puede ser vieja o no existir. */
-export async function ultimaUbicacionConocida(): Promise<Coordenadas | null> {
+/** Paso 1: el permiso. Si falta y el sistema todavía deja preguntar, se pide con su cuadro; si no, se pasa al pin. */
+async function conseguirPermiso() {
+  const permiso = await Location.getForegroundPermissionsAsync()
+  if (permiso.granted) {
+    return true
+  }
+  if (!permiso.canAskAgain) {
+    return false
+  }
+  return (await Location.requestForegroundPermissionsAsync()).granted
+}
+
+/**
+ * Paso 2: la ubicación del teléfono encendida. En Android se pide con el cuadro del sistema, que falla si la persona no
+ * la enciende; iOS no deja encenderla desde la app, así que se pasa al pin.
+ */
+async function encenderUbicacion() {
+  if (await Location.hasServicesEnabledAsync()) {
+    return true
+  }
+  if (Platform.OS !== 'android') {
+    return false
+  }
+  try {
+    await Location.enableNetworkProviderAsync()
+  } catch {
+    return false
+  }
+  return Location.hasServicesEnabledAsync()
+}
+
+/**
+ * Última posición que conoce el teléfono, para arrancar ahí el mapa del pin. `null` si no hay permiso, no existe o es
+ * más vieja que la edad máxima: un punto viejo no se da por bueno.
+ */
+export async function ultimaUbicacionReciente(): Promise<Coordenadas | null> {
+  const simulada = ubicacionDeDemostracion()
+  if (simulada) {
+    return simulada
+  }
   try {
     const permiso = await Location.getForegroundPermissionsAsync()
     if (!permiso.granted) {
       return null
     }
-    const posicion = await Location.getLastKnownPositionAsync()
+    const posicion = await Location.getLastKnownPositionAsync({ maxAge: EDAD_MAXIMA_UBICACION_MIN * 60_000 })
     return posicion ? coordenadasDe(posicion) : null
   } catch {
     return null
@@ -65,6 +119,16 @@ export async function ultimaUbicacionConocida(): Promise<Coordenadas | null> {
 
 function coordenadasDe(posicion: Location.LocationObject): Coordenadas {
   return { latitud: posicion.coords.latitude, longitud: posicion.coords.longitude }
+}
+
+/** En modo demostración la posición sale del punto o recorrido cargado, y el GPS del teléfono no se toca. */
+function ubicacionDeDemostracion(): Coordenadas | null {
+  return DEMO ? posicionSimulada() : null
+}
+
+function minutosDeEntorno(valor: string | undefined) {
+  const minutos = Number(valor)
+  return valor && Number.isFinite(minutos) && minutos > 0 ? minutos : 5
 }
 
 /** expo-location no tiene opción de tiempo máximo: si la promesa no termina a tiempo, devuelve `null`. */

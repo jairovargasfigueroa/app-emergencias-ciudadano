@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { StyleSheet, useColorScheme } from 'react-native'
 import MapView from 'react-native-maps'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -29,7 +29,6 @@ export function MapaSeguimiento({ ubicacionCiudadano, unidades, apagado, margenI
   const esquema = useColorScheme() === 'dark' ? 'dark' : 'light'
   const mapa = useRef<MapView>(null)
   const [mapaListo, setMapaListo] = useState(false)
-  const puntosEncuadrados = useRef(0)
 
   const puntos = [
     ...(ubicacionCiudadano ? [{ latitude: ubicacionCiudadano.latitud, longitude: ubicacionCiudadano.longitud }] : []),
@@ -37,18 +36,30 @@ export function MapaSeguimiento({ ubicacionCiudadano, unidades, apagado, margenI
       unidad.posicion ? [{ latitude: unidad.posicion.latitud, longitude: unidad.posicion.longitud }] : [],
     ),
   ]
+  // Qué hay en el mapa: el punto del ciudadano y las unidades que ya tienen posición, por su id. Cambia cuando entra o
+  // sale una unidad (también si la única canceló y otra tomó el caso), pero no con cada posición que llega.
+  const claveEncuadre = [
+    ubicacionCiudadano ? `${ubicacionCiudadano.latitud},${ubicacionCiudadano.longitud}` : '',
+    ...unidades.flatMap((unidad) => (unidad.posicion ? [unidad.ambulanciaId] : [])),
+  ].join('|')
 
-  useEffect(() => {
-    // Se encuadra al ciudadano con las unidades cuando aparece un punto nuevo, no en cada posición que llega.
-    // En Android el mapa no se puede encuadrar antes de onMapReady.
-    if (mapaListo && puntos.length > 1 && puntos.length > puntosEncuadrados.current) {
-      puntosEncuadrados.current = puntos.length
+  // Lee los puntos y los márgenes del momento sin que sus cambios (cada posición, cada ajuste de la hoja) reencuadren.
+  const encuadrar = useEffectEvent(() => {
+    if (puntos.length > 1) {
       mapa.current?.fitToCoordinates(puntos, {
         edgePadding: { top: margenes.top + 60, right: 60, bottom: margenInferior + 40, left: 60 },
         animated: true,
       })
     }
-  }, [mapaListo, puntos, margenInferior, margenes.top])
+  })
+
+  useEffect(() => {
+    // Se reencuadra solo cuando cambia lo que hay en el mapa, para no pelearle el mapa a la persona.
+    // En Android el mapa no se puede encuadrar antes de onMapReady.
+    if (mapaListo) {
+      encuadrar()
+    }
+  }, [mapaListo, claveEncuadre])
 
   return (
     <>

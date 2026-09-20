@@ -3,12 +3,20 @@ import { useEffect, useState } from 'react'
 
 import { baseDatosFirebase } from '@/shared/firebase/baseDatos'
 
-import { esEstadoFinal, type Seguimiento, type UnidadSeguimiento } from './api'
+import { esEstadoAtencion, esEstadoFinal, type Seguimiento, type UnidadSeguimiento } from './api'
 
 export type EstadoSeguimiento = {
+  /** Todavía no llegó ningún dato de Firebase para este incidente. */
   cargando: boolean
   error: boolean
   /** `null` mientras el servidor no publicó el seguimiento del incidente. */
+  seguimiento: Seguimiento | null
+}
+
+/** Lo último que llegó de Firebase y de qué incidente era. */
+type Recibido = {
+  incidenteId: number
+  error: boolean
   seguimiento: Seguimiento | null
 }
 
@@ -17,7 +25,7 @@ export type EstadoSeguimiento = {
  * último estado (PB-06 R4 y CA-07).
  */
 export function useSeguimiento(incidenteId: number): EstadoSeguimiento {
-  const [estado, setEstado] = useState<EstadoSeguimiento>({ cargando: true, error: false, seguimiento: null })
+  const [recibido, setRecibido] = useState<Recibido | null>(null)
 
   useEffect(() => {
     let finalizado = false
@@ -27,13 +35,18 @@ export function useSeguimiento(incidenteId: number): EstadoSeguimiento {
       ref(baseDatosFirebase(), `seguimiento/${incidenteId}`),
       (snapshot) => {
         const seguimiento = snapshot.exists() ? leerSeguimiento(snapshot) : null
-        setEstado({ cargando: false, error: false, seguimiento })
+        setRecibido({ incidenteId, error: false, seguimiento })
         if (seguimiento && esEstadoFinal(seguimiento.estado)) {
           finalizado = true
           dejarDeEscuchar?.()
         }
       },
-      () => setEstado((previo) => ({ ...previo, cargando: false, error: true })),
+      () =>
+        setRecibido((previo) => ({
+          incidenteId,
+          error: true,
+          seguimiento: previo?.incidenteId === incidenteId ? previo.seguimiento : null,
+        })),
     )
     // Con datos en caché, Firebase puede avisar antes de devolver la función para dejar de escuchar.
     if (finalizado) {
@@ -43,7 +56,11 @@ export function useSeguimiento(incidenteId: number): EstadoSeguimiento {
     return () => dejarDeEscuchar?.()
   }, [incidenteId])
 
-  return estado
+  // Lo recibido de otro incidente no vale: hasta el primer dato de este, se está conectando.
+  if (recibido?.incidenteId !== incidenteId) {
+    return { cargando: true, error: false, seguimiento: null }
+  }
+  return { cargando: false, error: recibido.error, seguimiento: recibido.seguimiento }
 }
 
 function leerSeguimiento(snapshot: DataSnapshot): Seguimiento {
@@ -51,7 +68,10 @@ function leerSeguimiento(snapshot: DataSnapshot): Seguimiento {
   // Las unidades usan el id de la ambulancia como clave: se recorren con forEach para no recibir un arreglo con huecos.
   snapshot.child('unidades').forEach((hijo) => {
     const unidad = hijo.val() as Omit<UnidadSeguimiento, 'ambulanciaId'>
-    unidades.push({ ...unidad, ambulanciaId: Number(hijo.key) })
+    // Se filtra antes de pintar o calcular la etapa: un estado que la app no conoce no puede tumbar la pantalla (R2).
+    if (esEstadoAtencion(unidad?.estado)) {
+      unidades.push({ ...unidad, ambulanciaId: Number(hijo.key) })
+    }
   })
   const valor = snapshot.val() as Omit<Seguimiento, 'unidades'>
   return {

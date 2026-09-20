@@ -2,7 +2,7 @@
   "expo": {
     "name": "SGA Ciudadano",
     "slug": "ambulancias-app-ciudadano",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "ambulanciasappciudadano",
@@ -11,6 +11,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "versionCode": 2,
       "package": "com.uem.ambulancias.ciudadano",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

@@ -8,7 +8,7 @@ export type VistaSeguimiento =
   | { tipo: 'acudiendo'; etapa: EstadoAtencion }
   | { tipo: 'concluido'; estado: EstadoIncidente }
 
-const ORDEN_ETAPAS: EstadoAtencion[] = ['EN_CAMINO', 'EN_EL_LUGAR', 'PACIENTE_RECOGIDO']
+const ORDEN_ETAPAS: EstadoAtencion[] = ['EN_CAMINO', 'EN_EL_LUGAR', 'PACIENTE_RECOGIDO', 'EN_HOSPITAL']
 
 /**
  * Estado final: concluido. Sin atenciones activas: buscando unidad, también cuando la única unidad canceló y el
