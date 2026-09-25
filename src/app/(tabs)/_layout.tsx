@@ -37,10 +37,10 @@ export default function LayoutPestanas() {
         }}
       />
       <Tabs.Screen
-        name="menu"
+        name="perfil"
         options={{
-          title: 'Menú',
-          tabBarIcon: ({ color, size }) => <MaterialIcons name="menu" size={size} color={color} />,
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => <MaterialIcons name="person" size={size} color={color} />,
         }}
       />
     </Tabs>
