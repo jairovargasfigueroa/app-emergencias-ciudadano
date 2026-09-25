@@ -19,7 +19,7 @@ import { DETALLE_MOVILIDAD, TEXTO_MOVILIDAD } from './textos'
 
 const MOVILIDADES: Movilidad[] = ['CAMINA_CON_AYUDA', 'SILLA_DE_RUEDAS', 'CAMILLA']
 
-type Hoja = 'quien' | 'como' | 'destino' | 'cuando' | 'mapaOrigen' | 'mapaDestino' | null
+type Hoja = 'quien' | 'como' | 'origen' | 'destino' | 'cuando' | 'mapaOrigen' | 'mapaDestino' | null
 
 /**
  * Una sola pantalla con filas: cada una abre lo que necesita y vuelve. Esta misma pantalla es la revisión, así
@@ -41,6 +41,7 @@ export function PantallaPedirTraslado() {
   const [equipo, setEquipo] = useState(false)
   const [aislamiento, setAislamiento] = useState(false)
   const [origen, setOrigen] = useState<Coordenadas | null>(null)
+  const [origenCentro, setOrigenCentro] = useState<CentroSalud | null>(null)
   const [referencia, setReferencia] = useState('')
   const [centro, setCentro] = useState<CentroSalud | null>(null)
   const [destino, setDestino] = useState<Coordenadas | null>(null)
@@ -76,6 +77,7 @@ export function PantallaPedirTraslado() {
       ? (ciudadano?.nombreCompleto ?? 'Yo')
       : (personas.data?.find((persona) => persona.id === pasajeroId)?.nombreCompleto ?? 'Elegir')
 
+  const textoOrigen = origenCentro ? origenCentro.nombre : origen ? 'Punto marcado en el mapa' : 'Elegir'
   const textoDestino = centro ? centro.nombre : destino ? 'Punto marcado en el mapa' : 'Elegir'
   const textoCuando = dia ? `${etiquetaDeDia(dia)} · tiene que estar ${hora}` : 'Lo antes posible'
 
@@ -145,11 +147,7 @@ export function PantallaPedirTraslado() {
               valor={`${TEXTO_MOVILIDAD[movilidad]}${oxigeno ? ' · Oxígeno' : ''}${equipo ? ' · Equipo' : ''}${aislamiento ? ' · Aislamiento' : ''}`}
               onPress={() => setHoja('como')}
             />
-            <Fila
-              etiqueta="De dónde"
-              valor={origen ? 'Punto marcado en el mapa' : 'Marcar en el mapa'}
-              onPress={() => setHoja('mapaOrigen')}
-            />
+            <Fila etiqueta="De dónde" valor={textoOrigen} onPress={() => setHoja('origen')} />
             <Fila etiqueta="A dónde" valor={textoDestino} onPress={() => setHoja('destino')} />
             <Fila etiqueta="Cuándo" valor={textoCuando} onPress={() => setHoja('cuando')} ultima />
           </YStack>
@@ -235,6 +233,7 @@ export function PantallaPedirTraslado() {
         inicial={origen}
         onElegir={(punto) => {
           setOrigen(punto)
+          setOrigenCentro(null)
           setHoja(null)
         }}
         onCerrar={() => setHoja(null)}
@@ -263,7 +262,10 @@ export function PantallaPedirTraslado() {
         onCerrar={() => setHoja(null)}
       />
 
-      <HojaElegir abierta={hoja === 'quien' || hoja === 'como' || hoja === 'destino'} onCerrar={() => setHoja(null)}>
+      <HojaElegir
+        abierta={hoja === 'quien' || hoja === 'como' || hoja === 'origen' || hoja === 'destino'}
+        onCerrar={() => setHoja(null)}
+      >
         {hoja === 'quien' ? (
           <>
             <Titulo>¿Quién viaja?</Titulo>
@@ -326,27 +328,44 @@ export function PantallaPedirTraslado() {
           </>
         ) : null}
 
+        {hoja === 'origen' ? (
+          <>
+            <Titulo>¿De dónde lo recogemos?</Titulo>
+            <Opcion
+              titulo="Marcar en el mapa"
+              detalle="Una casa, una clínica, cualquier lugar"
+              elegida={origenCentro === null && origen !== null}
+              onPress={() => setHoja('mapaOrigen')}
+            />
+            <AtajoDeCentros
+              centros={centros.data ?? []}
+              elegido={origenCentro?.id ?? null}
+              onElegir={(opcion) => {
+                setOrigenCentro(opcion)
+                setOrigen({ latitud: opcion.latitud, longitud: opcion.longitud })
+                setHoja(null)
+              }}
+            />
+          </>
+        ) : null}
+
         {hoja === 'destino' ? (
           <>
-            <Titulo>¿A dónde va?</Titulo>
-            {(centros.data ?? []).map((opcion) => (
-              <Opcion
-                key={opcion.id}
-                titulo={opcion.nombre}
-                detalle={opcion.direccion ?? ''}
-                elegida={centro?.id === opcion.id}
-                onPress={() => {
-                  setCentro(opcion)
-                  setDestino(null)
-                  setHoja(null)
-                }}
-              />
-            ))}
+            <Titulo>¿A dónde lo llevamos?</Titulo>
             <Opcion
-              titulo="Otro lugar"
-              detalle="Marcarlo en el mapa, por ejemplo una casa"
+              titulo="Marcar en el mapa"
+              detalle="Su casa, u otro lugar que no sea un centro de salud"
               elegida={centro === null && destino !== null}
               onPress={() => setHoja('mapaDestino')}
+            />
+            <AtajoDeCentros
+              centros={centros.data ?? []}
+              elegido={centro?.id ?? null}
+              onElegir={(opcion) => {
+                setCentro(opcion)
+                setDestino(null)
+                setHoja(null)
+              }}
             />
           </>
         ) : null}
@@ -441,6 +460,44 @@ function HojaElegir({
         </Button>
       </Sheet.Frame>
     </Sheet>
+  )
+}
+
+/**
+ * Los centros de salud son un atajo, no el camino: un traslado va tan seguido a una clínica como a una casa.
+ * Por eso el mapa va primero y esto abajo, y si no hay ninguno cargado la pantalla lo dice en vez de quedar vacía.
+ */
+function AtajoDeCentros({
+  centros,
+  elegido,
+  onElegir,
+}: {
+  centros: CentroSalud[]
+  elegido: number | null
+  onElegir: (centro: CentroSalud) => void
+}) {
+  if (centros.length === 0) {
+    return (
+      <Text fontSize={12} lineHeight={17} color="$textoSecundario">
+        Todavía no hay centros de salud cargados, así que marcalo en el mapa.
+      </Text>
+    )
+  }
+  return (
+    <>
+      <Text fontSize={12} fontWeight="600" color="$textoTenue" letterSpacing={0.5}>
+        O UN CENTRO DE SALUD
+      </Text>
+      {centros.map((opcion) => (
+        <Opcion
+          key={opcion.id}
+          titulo={opcion.nombre}
+          detalle={opcion.direccion ?? ''}
+          elegida={elegido === opcion.id}
+          onPress={() => onElegir(opcion)}
+        />
+      ))}
+    </>
   )
 }
 
