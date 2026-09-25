@@ -79,11 +79,13 @@ export type DetallesTraslado = {
   observaciones?: string | null
 }
 
-/** `CentroSaludResponse` del backend. No trae coordenadas: el punto lo resuelve el servidor desde el id. */
+/** `CentroSaludResponse` del backend. Trae su punto: sirve como origen o destino sin marcarlo en el mapa. */
 export type CentroSalud = {
   id: number
   nombre: string
   direccion: string | null
+  latitud: number
+  longitud: number
 }
 
 /** Sigue esperando algo: su día, una unidad, o que la unidad llegue. */
