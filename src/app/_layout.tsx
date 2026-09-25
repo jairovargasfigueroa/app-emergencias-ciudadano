@@ -116,7 +116,9 @@ function Pantallas() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={registrado}>
-        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="pedir-traslado" />
+        <Stack.Screen name="traslado/[trasladoId]" />
         <Stack.Screen name="pin" />
         <Stack.Screen name="seguimiento/[incidenteId]" />
         <Stack.Screen name="demo/index" />
