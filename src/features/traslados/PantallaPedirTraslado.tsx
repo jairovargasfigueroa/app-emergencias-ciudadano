@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, H1, Input, Paragraph, Sheet, Text, XStack, YStack, useToastController } from 'tamagui'
 
-import { obtenerUbicacionGps } from '@/features/alerta/ubicacion'
+import { obtenerUbicacionGps, ultimaUbicacionReciente, type Coordenadas } from '@/features/alerta/ubicacion'
 import { personasQuery } from '@/features/personas/queries'
 import { ciudadanoQuery } from '@/features/registro/queries'
 import { mensajeDeError } from '@/shared/api/cliente'
@@ -13,11 +13,13 @@ import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
 import type { CentroSalud, Movilidad } from './api'
 import { centrosSaludQuery, pedirTrasladoMutation } from './queries'
+import { SelectorDeCuando } from './SelectorDeCuando'
+import { SelectorDePunto } from './SelectorDePunto'
 import { DETALLE_MOVILIDAD, TEXTO_MOVILIDAD } from './textos'
 
 const MOVILIDADES: Movilidad[] = ['CAMINA_CON_AYUDA', 'SILLA_DE_RUEDAS', 'CAMILLA']
 
-type Hoja = 'quien' | 'como' | 'destino' | null
+type Hoja = 'quien' | 'como' | 'destino' | 'cuando' | 'mapaOrigen' | 'mapaDestino' | null
 
 /**
  * Una sola pantalla con filas: cada una abre lo que necesita y vuelve. Esta misma pantalla es la revisión, así
@@ -37,19 +39,57 @@ export function PantallaPedirTraslado() {
   const [movilidad, setMovilidad] = useState<Movilidad>('CAMINA_CON_AYUDA')
   const [oxigeno, setOxigeno] = useState(false)
   const [equipo, setEquipo] = useState(false)
-  const [centro, setCentro] = useState<CentroSalud | null>(null)
+  const [aislamiento, setAislamiento] = useState(false)
+  const [origen, setOrigen] = useState<Coordenadas | null>(null)
   const [referencia, setReferencia] = useState('')
+  const [centro, setCentro] = useState<CentroSalud | null>(null)
+  const [destino, setDestino] = useState<Coordenadas | null>(null)
+  const [dia, setDia] = useState<Date | null>(null)
+  const [hora, setHora] = useState('10:00')
+  const [peso, setPeso] = useState('')
+  const [acompanantes, setAcompanantes] = useState('0')
+  const [observaciones, setObservaciones] = useState('')
+  const [contactoNombre, setContactoNombre] = useState('')
+  const [contactoTelefono, setContactoTelefono] = useState('')
 
-  const pasajero = pasajeroId === null ? ciudadano?.nombreCompleto : personas.data?.find((p) => p.id === pasajeroId)?.nombreCompleto
+  // El mapa abre donde está el teléfono, que es de donde se pide la mayoría de las veces. Si no hay señal, abre
+  // sobre la ciudad y la persona lo mueve.
+  useEffect(() => {
+    let vigente = true
+    void ultimaUbicacionReciente().then((punto) => {
+      if (vigente && punto) {
+        setOrigen((actual) => actual ?? punto)
+      }
+    })
+    void obtenerUbicacionGps().then((punto) => {
+      if (vigente && punto) {
+        setOrigen((actual) => actual ?? punto)
+      }
+    })
+    return () => {
+      vigente = false
+    }
+  }, [])
 
-  async function enviar() {
-    const ubicacion = await obtenerUbicacionGps()
-    if (!ubicacion) {
-      toast.show('No pudimos ubicarte', { message: 'Encendé la ubicación para pedir el traslado.' })
+  const pasajero =
+    pasajeroId === null
+      ? (ciudadano?.nombreCompleto ?? 'Yo')
+      : (personas.data?.find((persona) => persona.id === pasajeroId)?.nombreCompleto ?? 'Elegir')
+
+  const textoDestino = centro ? centro.nombre : destino ? 'Punto marcado en el mapa' : 'Elegir'
+  const textoCuando = dia ? `${etiquetaDeDia(dia)} · tiene que estar ${hora}` : 'Lo antes posible'
+
+  function enviar() {
+    if (!origen) {
+      toast.show('Falta el punto de recogida', { message: 'Marcá en el mapa desde dónde lo recogemos.' })
       return
     }
-    if (!centro) {
-      toast.show('Falta el destino', { message: 'Elegí a qué centro de salud va.' })
+    if (!centro && !destino) {
+      toast.show('Falta el destino', { message: 'Elegí un centro de salud o marcalo en el mapa.' })
+      return
+    }
+    if (Boolean(contactoNombre.trim()) !== Boolean(contactoTelefono.trim())) {
+      toast.show('Falta un dato del contacto', { message: 'Poné el nombre y el teléfono, o dejá los dos vacíos.' })
       return
     }
     pedir.mutate(
@@ -58,12 +98,19 @@ export function PantallaPedirTraslado() {
         movilidad,
         oxigeno,
         equipo,
-        aislamiento: false,
-        acompanantes: 0,
-        origenLatitud: ubicacion.latitud,
-        origenLongitud: ubicacion.longitud,
+        aislamiento,
+        pesoAproximado: peso.trim() ? Number(peso) : null,
+        acompanantes: Number(acompanantes) || 0,
+        observaciones: observaciones.trim() || null,
+        origenLatitud: origen.latitud,
+        origenLongitud: origen.longitud,
         origenReferencia: referencia.trim() || null,
-        centroSaludDestinoId: centro.id,
+        contactoNombre: contactoNombre.trim() || null,
+        contactoTelefono: contactoTelefono.trim() || null,
+        centroSaludDestinoId: centro?.id ?? null,
+        destinoLatitud: centro ? null : destino?.latitud,
+        destinoLongitud: centro ? null : destino?.longitud,
+        horaCita: dia ? horaCitaComoIso(dia, hora) : null,
       },
       {
         onSuccess: () => {
@@ -87,18 +134,24 @@ export function PantallaPedirTraslado() {
               Pedir traslado
             </H1>
             <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
-              Se busca una unidad cuando llega la hora de salir. Te avisamos apenas la tengamos.
+              Buscamos una unidad cuando llegue la hora de salir. Te avisamos apenas la tengamos.
             </Paragraph>
           </YStack>
 
           <YStack rounded={14} borderWidth={1} borderColor="$borde" overflow="hidden">
-            <Fila etiqueta="Quién viaja" valor={pasajero ?? 'Elegir'} onPress={() => setHoja('quien')} />
+            <Fila etiqueta="Quién viaja" valor={pasajero} onPress={() => setHoja('quien')} />
             <Fila
               etiqueta="Cómo viaja"
-              valor={`${TEXTO_MOVILIDAD[movilidad]}${oxigeno ? ' · Oxígeno' : ''}${equipo ? ' · Equipo' : ''}`}
+              valor={`${TEXTO_MOVILIDAD[movilidad]}${oxigeno ? ' · Oxígeno' : ''}${equipo ? ' · Equipo' : ''}${aislamiento ? ' · Aislamiento' : ''}`}
               onPress={() => setHoja('como')}
             />
-            <Fila etiqueta="A dónde" valor={centro?.nombre ?? 'Elegir'} onPress={() => setHoja('destino')} ultima />
+            <Fila
+              etiqueta="De dónde"
+              valor={origen ? 'Punto marcado en el mapa' : 'Marcar en el mapa'}
+              onPress={() => setHoja('mapaOrigen')}
+            />
+            <Fila etiqueta="A dónde" valor={textoDestino} onPress={() => setHoja('destino')} />
+            <Fila etiqueta="Cuándo" valor={textoCuando} onPress={() => setHoja('cuando')} ultima />
           </YStack>
 
           <YStack gap={6}>
@@ -112,8 +165,59 @@ export function PantallaPedirTraslado() {
               onChangeText={setReferencia}
             />
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
-              Tomamos tu ubicación actual como punto de recogida. La referencia es lo que hace que la ambulancia
-              encuentre la puerta.
+              Es lo que hace que la ambulancia encuentre la puerta.
+            </Text>
+          </YStack>
+
+          <YStack gap={10}>
+            <Text fontSize={13} fontWeight="600" color="$texto">
+              Quién recibe a la ambulancia
+            </Text>
+            <Input size="$4" placeholder="Nombre" value={contactoNombre} onChangeText={setContactoNombre} />
+            <Input
+              size="$4"
+              placeholder="Teléfono"
+              keyboardType="phone-pad"
+              value={contactoTelefono}
+              onChangeText={setContactoTelefono}
+            />
+            <Text fontSize={12} lineHeight={17} color="$textoSecundario">
+              Dejalo vacío si vas a estar vos. Sirve cuando el que pide no es el que abre la puerta.
+            </Text>
+          </YStack>
+
+          <YStack gap={10}>
+            <Text fontSize={13} fontWeight="600" color="$texto">
+              Otros datos
+            </Text>
+            <XStack gap={10}>
+              <YStack flex={1} gap={4}>
+                <Text fontSize={12} color="$textoSecundario">
+                  Peso aproximado (kg)
+                </Text>
+                <Input size="$4" placeholder="70" keyboardType="number-pad" value={peso} onChangeText={setPeso} />
+              </YStack>
+              <YStack flex={1} gap={4}>
+                <Text fontSize={12} color="$textoSecundario">
+                  Acompañantes
+                </Text>
+                <Input
+                  size="$4"
+                  placeholder="0"
+                  keyboardType="number-pad"
+                  value={acompanantes}
+                  onChangeText={setAcompanantes}
+                />
+              </YStack>
+            </XStack>
+            <Input
+              size="$4"
+              placeholder="Algo más que la tripulación deba saber"
+              value={observaciones}
+              onChangeText={setObservaciones}
+            />
+            <Text fontSize={12} lineHeight={17} color="$textoSecundario">
+              El peso define si hace falta camilla reforzada y cuánta gente para cargar.
             </Text>
           </YStack>
 
@@ -125,7 +229,41 @@ export function PantallaPedirTraslado() {
         </YStack>
       </ScrollView>
 
-      <HojaElegir abierta={hoja !== null} onCerrar={() => setHoja(null)}>
+      <SelectorDePunto
+        abierto={hoja === 'mapaOrigen'}
+        titulo="¿De dónde lo recogemos?"
+        inicial={origen}
+        onElegir={(punto) => {
+          setOrigen(punto)
+          setHoja(null)
+        }}
+        onCerrar={() => setHoja(null)}
+      />
+
+      <SelectorDePunto
+        abierto={hoja === 'mapaDestino'}
+        titulo="¿A dónde lo llevamos?"
+        inicial={destino ?? origen}
+        onElegir={(punto) => {
+          setDestino(punto)
+          setCentro(null)
+          setHoja(null)
+        }}
+        onCerrar={() => setHoja(null)}
+      />
+
+      <SelectorDeCuando
+        abierto={hoja === 'cuando'}
+        dia={dia}
+        hora={hora}
+        onCambiar={(nuevoDia, nuevaHora) => {
+          setDia(nuevoDia)
+          setHora(nuevaHora)
+        }}
+        onCerrar={() => setHoja(null)}
+      />
+
+      <HojaElegir abierta={hoja === 'quien' || hoja === 'como' || hoja === 'destino'} onCerrar={() => setHoja(null)}>
         {hoja === 'quien' ? (
           <>
             <Titulo>¿Quién viaja?</Titulo>
@@ -175,6 +313,12 @@ export function PantallaPedirTraslado() {
               elegida={equipo}
               onPress={() => setEquipo(!equipo)}
             />
+            <Opcion
+              titulo="Necesita aislamiento"
+              detalle="La tripulación tiene que saberlo antes de llegar"
+              elegida={aislamiento}
+              onPress={() => setAislamiento(!aislamiento)}
+            />
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
               Con esto elegimos la unidad que corresponde. Es de este viaje: si cambia, en el próximo lo volvés a
               elegir.
@@ -193,20 +337,43 @@ export function PantallaPedirTraslado() {
                 elegida={centro?.id === opcion.id}
                 onPress={() => {
                   setCentro(opcion)
+                  setDestino(null)
                   setHoja(null)
                 }}
               />
             ))}
-            {centros.data?.length === 0 ? (
-              <Text fontSize={13} lineHeight={18} color="$textoSecundario">
-                Todavía no hay centros de salud cargados.
-              </Text>
-            ) : null}
+            <Opcion
+              titulo="Otro lugar"
+              detalle="Marcarlo en el mapa, por ejemplo una casa"
+              elegida={centro === null && destino !== null}
+              onPress={() => setHoja('mapaDestino')}
+            />
           </>
         ) : null}
       </HojaElegir>
     </>
   )
+}
+
+function etiquetaDeDia(dia: Date) {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const diferencia = Math.round((dia.getTime() - hoy.getTime()) / 86_400_000)
+  if (diferencia === 0) {
+    return 'Hoy'
+  }
+  if (diferencia === 1) {
+    return 'Mañana'
+  }
+  return dia.toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'short' })
+}
+
+/** El backend espera un instante: se arma el día elegido con la hora elegida, en la hora del teléfono. */
+function horaCitaComoIso(dia: Date, hora: string) {
+  const [horas, minutos] = hora.split(':').map(Number)
+  const fecha = new Date(dia)
+  fecha.setHours(horas, minutos, 0, 0)
+  return fecha.toISOString()
 }
 
 function Fila({
@@ -257,7 +424,13 @@ function HojaElegir({
   children: React.ReactNode
 }) {
   return (
-    <Sheet modal open={abierta} onOpenChange={(valor: boolean) => !valor && onCerrar()} snapPointsMode="fit" dismissOnSnapToBottom>
+    <Sheet
+      modal
+      open={abierta}
+      onOpenChange={(valor: boolean) => !valor && onCerrar()}
+      snapPointsMode="fit"
+      dismissOnSnapToBottom
+    >
       <Sheet.Overlay bg="$velo" />
       <Sheet.Frame bg="$superficie" p={20} gap={10} borderTopLeftRadius={20} borderTopRightRadius={20}>
         {children}
