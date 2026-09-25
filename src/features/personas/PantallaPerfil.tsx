@@ -14,7 +14,7 @@ import { personasQuery, registrarPersonaMutation } from './queries'
  * Los datos del ciudadano y su gente: a quiénes traslada y a quiénes avisar. No son cuentas —esa señora no tiene
  * la app— así que el teléfono que se pone suele ser el de quien las registra, y eso está bien.
  */
-export function PantallaMenu() {
+export function PantallaPerfil() {
   const margenes = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const toast = useToastController()
@@ -49,7 +49,7 @@ export function PantallaMenu() {
       <YStack gap={24}>
         <YStack gap={4}>
           <H1 color="$texto" fontSize={26} lineHeight={32} fontWeight="600">
-            Menú
+            Mi perfil
           </H1>
           {ciudadano ? (
             <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>

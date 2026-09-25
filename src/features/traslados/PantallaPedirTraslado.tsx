@@ -291,7 +291,7 @@ export function PantallaPedirTraslado() {
               />
             ))}
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
-              Para agregar a alguien, entrá a Menú. Queda guardado para los próximos pedidos.
+              Para agregar a alguien, entrá a tu perfil. Queda guardado para los próximos pedidos.
             </Text>
           </>
         ) : null}
