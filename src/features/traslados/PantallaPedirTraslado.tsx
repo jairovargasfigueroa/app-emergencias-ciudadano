@@ -13,13 +13,13 @@ import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
 import type { CentroSalud, Movilidad } from './api'
 import { centrosSaludQuery, pedirTrasladoMutation } from './queries'
+import { MapaDelPedido, type PuntoActivo } from './MapaDelPedido'
 import { SelectorDeCuando } from './SelectorDeCuando'
-import { SelectorDePunto } from './SelectorDePunto'
 import { DETALLE_MOVILIDAD, TEXTO_MOVILIDAD } from './textos'
 
 const MOVILIDADES: Movilidad[] = ['CAMINA_CON_AYUDA', 'SILLA_DE_RUEDAS', 'CAMILLA']
 
-type Hoja = 'quien' | 'como' | 'origen' | 'destino' | 'cuando' | 'mapaOrigen' | 'mapaDestino' | null
+type Hoja = 'quien' | 'como' | 'destino' | 'cuando' | null
 
 /**
  * Una sola pantalla con filas: cada una abre lo que necesita y vuelve. Esta misma pantalla es la revisión, así
@@ -41,7 +41,7 @@ export function PantallaPedirTraslado() {
   const [equipo, setEquipo] = useState(false)
   const [aislamiento, setAislamiento] = useState(false)
   const [origen, setOrigen] = useState<Coordenadas | null>(null)
-  const [origenCentro, setOrigenCentro] = useState<CentroSalud | null>(null)
+  const [activo, setActivo] = useState<PuntoActivo>('origen')
   const [referencia, setReferencia] = useState('')
   const [centro, setCentro] = useState<CentroSalud | null>(null)
   const [destino, setDestino] = useState<Coordenadas | null>(null)
@@ -77,17 +77,16 @@ export function PantallaPedirTraslado() {
       ? (ciudadano?.nombreCompleto ?? 'Yo')
       : (personas.data?.find((persona) => persona.id === pasajeroId)?.nombreCompleto ?? 'Elegir')
 
-  const textoOrigen = origenCentro ? origenCentro.nombre : origen ? 'Punto marcado en el mapa' : 'Elegir'
   const textoDestino = centro ? centro.nombre : destino ? 'Punto marcado en el mapa' : 'Elegir'
   const textoCuando = dia ? `${etiquetaDeDia(dia)} · tiene que estar ${hora}` : 'Lo antes posible'
 
   function enviar() {
     if (!origen) {
-      toast.show('Falta el punto de recogida', { message: 'Marcá en el mapa desde dónde lo recogemos.' })
+      toast.show('Falta el punto de recogida', { message: 'En el mapa, elegí "De dónde" y dejá el pin ahí.' })
       return
     }
     if (!centro && !destino) {
-      toast.show('Falta el destino', { message: 'Elegí un centro de salud o marcalo en el mapa.' })
+      toast.show('Falta el destino', { message: 'En el mapa, elegí "A dónde" y dejá el pin ahí.' })
       return
     }
     if (Boolean(contactoNombre.trim()) !== Boolean(contactoTelefono.trim())) {
@@ -140,6 +139,23 @@ export function PantallaPedirTraslado() {
             </Paragraph>
           </YStack>
 
+          <MapaDelPedido
+            origen={origen}
+            destino={destino}
+            activo={activo}
+            onCambiarActivo={setActivo}
+            onMover={(punto) => {
+              if (activo === 'origen') {
+                setOrigen(punto)
+              } else {
+                // Mover el pin manda sobre el centro elegido: la persona está diciendo otra cosa.
+                setDestino(punto)
+                setCentro(null)
+              }
+            }}
+            etiquetaDestino={centro?.nombre ?? null}
+          />
+
           <YStack rounded={14} borderWidth={1} borderColor="$borde" overflow="hidden">
             <Fila etiqueta="Quién viaja" valor={pasajero} onPress={() => setHoja('quien')} />
             <Fila
@@ -147,7 +163,6 @@ export function PantallaPedirTraslado() {
               valor={`${TEXTO_MOVILIDAD[movilidad]}${oxigeno ? ' · Oxígeno' : ''}${equipo ? ' · Equipo' : ''}${aislamiento ? ' · Aislamiento' : ''}`}
               onPress={() => setHoja('como')}
             />
-            <Fila etiqueta="De dónde" valor={textoOrigen} onPress={() => setHoja('origen')} />
             <Fila etiqueta="A dónde" valor={textoDestino} onPress={() => setHoja('destino')} />
             <Fila etiqueta="Cuándo" valor={textoCuando} onPress={() => setHoja('cuando')} ultima />
           </YStack>
@@ -227,30 +242,6 @@ export function PantallaPedirTraslado() {
         </YStack>
       </ScrollView>
 
-      <SelectorDePunto
-        abierto={hoja === 'mapaOrigen'}
-        titulo="¿De dónde lo recogemos?"
-        inicial={origen}
-        onElegir={(punto) => {
-          setOrigen(punto)
-          setOrigenCentro(null)
-          setHoja(null)
-        }}
-        onCerrar={() => setHoja(null)}
-      />
-
-      <SelectorDePunto
-        abierto={hoja === 'mapaDestino'}
-        titulo="¿A dónde lo llevamos?"
-        inicial={destino ?? origen}
-        onElegir={(punto) => {
-          setDestino(punto)
-          setCentro(null)
-          setHoja(null)
-        }}
-        onCerrar={() => setHoja(null)}
-      />
-
       <SelectorDeCuando
         abierto={hoja === 'cuando'}
         dia={dia}
@@ -263,7 +254,7 @@ export function PantallaPedirTraslado() {
       />
 
       <HojaElegir
-        abierta={hoja === 'quien' || hoja === 'como' || hoja === 'origen' || hoja === 'destino'}
+        abierta={hoja === 'quien' || hoja === 'como' || hoja === 'destino'}
         onCerrar={() => setHoja(null)}
       >
         {hoja === 'quien' ? (
@@ -328,42 +319,19 @@ export function PantallaPedirTraslado() {
           </>
         ) : null}
 
-        {hoja === 'origen' ? (
-          <>
-            <Titulo>¿De dónde lo recogemos?</Titulo>
-            <Opcion
-              titulo="Marcar en el mapa"
-              detalle="Una casa, una clínica, cualquier lugar"
-              elegida={origenCentro === null && origen !== null}
-              onPress={() => setHoja('mapaOrigen')}
-            />
-            <AtajoDeCentros
-              centros={centros.data ?? []}
-              elegido={origenCentro?.id ?? null}
-              onElegir={(opcion) => {
-                setOrigenCentro(opcion)
-                setOrigen({ latitud: opcion.latitud, longitud: opcion.longitud })
-                setHoja(null)
-              }}
-            />
-          </>
-        ) : null}
-
         {hoja === 'destino' ? (
           <>
             <Titulo>¿A dónde lo llevamos?</Titulo>
-            <Opcion
-              titulo="Marcar en el mapa"
-              detalle="Su casa, u otro lugar que no sea un centro de salud"
-              elegida={centro === null && destino !== null}
-              onPress={() => setHoja('mapaDestino')}
-            />
+            <Text fontSize={13} lineHeight={18} color="$textoSecundario">
+              Si va a una casa o a otro lugar, marcalo directo en el mapa de arriba.
+            </Text>
             <AtajoDeCentros
               centros={centros.data ?? []}
               elegido={centro?.id ?? null}
               onElegir={(opcion) => {
                 setCentro(opcion)
-                setDestino(null)
+                setDestino({ latitud: opcion.latitud, longitud: opcion.longitud })
+                setActivo('destino')
                 setHoja(null)
               }}
             />
