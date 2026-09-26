@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
+import { useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, H1, Paragraph, Text, XStack, YStack, useToastController } from 'tamagui'
 
 import { mensajeDeError } from '@/shared/api/cliente'
 
-import { trasladoVigente, type Traslado } from './api'
+import { trasladoVigente, yaEsHoraDeSalir, type Traslado } from './api'
 import { cancelarTrasladoMutation, misTrasladosQuery } from './queries'
-import { EXPLICACION_ESTADO, TEXTO_ESTADO, TEXTO_MOVILIDAD, TEXTO_TIPO_UNIDAD } from './textos'
+import { HojaCorregirDetalles } from './HojaCorregirDetalles'
+import { EXPLICACION_ESTADO, TEXTO_ESTADO, TEXTO_MOVILIDAD, TEXTO_TIPO_UNIDAD, ventanaDeRecogida } from './textos'
 
 /** El traslado sale de la lista que ya está en caché: no hay un endpoint de detalle para el ciudadano. */
 export function PantallaTraslado() {
@@ -18,6 +20,7 @@ export function PantallaTraslado() {
   const { trasladoId } = useLocalSearchParams<{ trasladoId: string }>()
   const traslados = useQuery(misTrasladosQuery())
   const cancelar = useMutation(cancelarTrasladoMutation(queryClient))
+  const [corrigiendo, setCorrigiendo] = useState(false)
 
   const traslado = traslados.data?.find((item) => String(item.id) === trasladoId)
 
@@ -46,49 +49,85 @@ export function PantallaTraslado() {
     })
   }
 
+  const recibe = quienRecibe(traslado)
+
   return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingTop: margenes.top + 16, paddingBottom: 32, paddingHorizontal: 20 }}
-    >
-      <YStack gap={20}>
-        <YStack gap={4}>
-          <Text fontSize={12} fontWeight="600" color="$textoTenue" letterSpacing={0.6}>
-            {TEXTO_ESTADO[traslado.estado].toUpperCase()}
-          </Text>
-          <H1 color="$texto" fontSize={24} lineHeight={30} fontWeight="600">
-            {traslado.pasajero}
-          </H1>
-          <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
-            {EXPLICACION_ESTADO[traslado.estado]}
-          </Paragraph>
-        </YStack>
+    <>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: margenes.top + 16, paddingBottom: 32, paddingHorizontal: 20 }}
+      >
+        <YStack gap={20}>
+          <YStack gap={4}>
+            <Text fontSize={12} fontWeight="600" color="$textoTenue" letterSpacing={0.6}>
+              {TEXTO_ESTADO[traslado.estado].toUpperCase()}
+            </Text>
+            <H1 color="$texto" fontSize={24} lineHeight={30} fontWeight="600">
+              {traslado.pasajero}
+            </H1>
+            <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
+              {EXPLICACION_ESTADO[traslado.estado]}
+            </Paragraph>
+          </YStack>
 
-        <YStack gap={10} p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
-          <Dato etiqueta="Cuándo" valor={cuando(traslado)} />
-          <Dato etiqueta="Desde" valor={traslado.origenReferencia ?? 'Punto marcado en el mapa'} />
-          <Dato etiqueta="Hasta" valor={traslado.centroSaludDestino ?? 'Punto marcado en el mapa'} />
-          <Dato etiqueta="Cómo viaja" valor={TEXTO_MOVILIDAD[traslado.movilidad]} />
-          <Dato etiqueta="Necesita" valor={necesita(traslado)} />
-          <Dato etiqueta="Unidad" valor={TEXTO_TIPO_UNIDAD[traslado.tipoUnidad]} />
-        </YStack>
+          {yaEsHoraDeSalir(traslado.estado) ? (
+            <YStack gap={6} p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
+              <Text fontSize={12} fontWeight="600" color="$textoTenue" letterSpacing={0.6}>
+                VENTANA DE RECOGIDA
+              </Text>
+              <Text fontSize={20} lineHeight={26} fontWeight="600" color="$texto">
+                {ventanaDeRecogida(traslado)}
+              </Text>
+              <Paragraph color="$textoSecundario" fontSize={13} lineHeight={18}>
+                Es un rango, no una hora exacta. Conviene estar listo desde la primera hora.
+              </Paragraph>
+            </YStack>
+          ) : null}
 
-        {trasladoVigente(traslado.estado) ? (
-          <Button
-            height={52}
-            rounded={14}
-            variant="outlined"
-            disabled={cancelar.isPending}
-            opacity={cancelar.isPending ? 0.6 : 1}
-            onPress={retirar}
-          >
-            <Button.Text color="$primario" fontSize={16} fontWeight="600">
-              Cancelar el traslado
-            </Button.Text>
-          </Button>
-        ) : null}
-      </YStack>
-    </ScrollView>
+          <YStack gap={10} p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
+            <Dato etiqueta="Cuándo" valor={cuando(traslado)} />
+            <Dato etiqueta="Desde" valor={traslado.origenReferencia ?? 'Punto marcado en el mapa'} />
+            <Dato etiqueta="Hasta" valor={traslado.centroSaludDestino ?? 'Punto marcado en el mapa'} />
+            <Dato etiqueta="Cómo viaja" valor={TEXTO_MOVILIDAD[traslado.movilidad]} />
+            <Dato etiqueta="Necesita" valor={necesita(traslado)} />
+            <Dato etiqueta="Unidad" valor={TEXTO_TIPO_UNIDAD[traslado.tipoUnidad]} />
+            {recibe ? <Dato etiqueta="Quién recibe" valor={recibe} /> : null}
+            {traslado.observaciones ? <Dato etiqueta="Observaciones" valor={traslado.observaciones} /> : null}
+          </YStack>
+
+          {trasladoVigente(traslado.estado) ? (
+            <YStack gap={20}>
+              <YStack gap={8}>
+                <Button height={52} rounded={14} variant="outlined" onPress={() => setCorrigiendo(true)}>
+                  <Button.Text color="$texto" fontSize={16} fontWeight="600">
+                    Corregir los detalles
+                  </Button.Text>
+                </Button>
+                <Paragraph color="$textoSecundario" fontSize={12} lineHeight={17}>
+                  La referencia, quién recibe y las observaciones se pueden cambiar aunque la unidad ya esté en
+                  camino.
+                </Paragraph>
+              </YStack>
+
+              <Button
+                height={52}
+                rounded={14}
+                variant="outlined"
+                disabled={cancelar.isPending}
+                opacity={cancelar.isPending ? 0.6 : 1}
+                onPress={retirar}
+              >
+                <Button.Text color="$primario" fontSize={16} fontWeight="600">
+                  Cancelar el traslado
+                </Button.Text>
+              </Button>
+            </YStack>
+          ) : null}
+        </YStack>
+      </ScrollView>
+
+      <HojaCorregirDetalles abierta={corrigiendo} traslado={traslado} onCerrar={() => setCorrigiendo(false)} />
+    </>
   )
 }
 
@@ -107,6 +146,14 @@ function necesita(traslado: Traslado) {
     (texto): texto is string => texto !== null,
   )
   return marcadas.length === 0 ? 'Nada en particular' : marcadas.join(' · ')
+}
+
+/** El contacto viaja completo o vacío, pero llega en dos campos sueltos: se arma con lo que haya. */
+function quienRecibe(traslado: Traslado) {
+  const partes = [traslado.contactoNombre, traslado.contactoTelefono].filter(
+    (parte): parte is string => parte !== null && parte !== '',
+  )
+  return partes.length > 0 ? partes.join(' · ') : null
 }
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {

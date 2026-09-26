@@ -98,6 +98,15 @@ export function tieneUnidad(estado: EstadoTraslado) {
   return estado === 'ASIGNADO'
 }
 
+/**
+ * Ya llegó la hora de salir: el sistema está buscando la unidad o ya la asignó. Un traslado `PROGRAMADO` puede
+ * ser para dentro de tres días y todavía no tiene nada asignado, así que ahí las horas de salida no le dicen
+ * nada a la familia.
+ */
+export function yaEsHoraDeSalir(estado: EstadoTraslado) {
+  return estado === 'BUSCANDO_UNIDAD' || estado === 'ASIGNADO'
+}
+
 export const trasladosApi = {
   pedir: (datos: PedirTraslado) => api.post<Traslado>('/traslados', datos),
   mios: (signal?: AbortSignal) => api.get<Traslado[]>('/traslados/mios', { signal }),
