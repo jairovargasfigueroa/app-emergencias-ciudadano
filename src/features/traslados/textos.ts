@@ -1,4 +1,6 @@
-import type { EstadoTraslado, Movilidad, TipoUnidad } from './api'
+import { horaCorta } from '@/shared/formato/tiempo'
+
+import type { EstadoTraslado, Movilidad, TipoUnidad, Traslado } from './api'
 
 /** Lo que el ciudadano lee, no lo que el sistema piensa: "sin unidad" no le dice nada a una familia. */
 export const TEXTO_ESTADO: Record<EstadoTraslado, string> = {
@@ -19,6 +21,17 @@ export const EXPLICACION_ESTADO: Record<EstadoTraslado, string> = {
   NO_REALIZADO: 'La unidad fue, pero el traslado no se llegó a hacer.',
   NO_CUBIERTO: 'No conseguimos una unidad a tiempo. Lamentamos el problema.',
   CANCELADO: 'Retiraste este pedido.',
+}
+
+/**
+ * Una ventana y no una hora exacta: entre la salida estimada y la última salida posible hay un margen que el
+ * tráfico se come, y prometer "9:12" es prometer un minuto que nadie puede sostener. Si el margen queda dentro
+ * del mismo minuto, "entre 09:00 y 09:00" parece un error, así que ahí va una sola hora.
+ */
+export function ventanaDeRecogida(traslado: Traslado): string {
+  const desde = horaCorta(traslado.horaSalidaEstimada)
+  const hasta = horaCorta(traslado.horaLimiteSalida)
+  return desde === hasta ? `Pasan cerca de las ${desde}` : `Pasan entre ${desde} y ${hasta}`
 }
 
 export const TEXTO_MOVILIDAD: Record<Movilidad, string> = {

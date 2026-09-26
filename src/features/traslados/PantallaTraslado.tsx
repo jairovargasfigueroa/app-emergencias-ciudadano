@@ -6,9 +6,9 @@ import { Button, H1, Paragraph, Text, XStack, YStack, useToastController } from 
 
 import { mensajeDeError } from '@/shared/api/cliente'
 
-import { trasladoVigente, type Traslado } from './api'
+import { trasladoVigente, yaEsHoraDeSalir, type Traslado } from './api'
 import { cancelarTrasladoMutation, misTrasladosQuery } from './queries'
-import { EXPLICACION_ESTADO, TEXTO_ESTADO, TEXTO_MOVILIDAD, TEXTO_TIPO_UNIDAD } from './textos'
+import { EXPLICACION_ESTADO, TEXTO_ESTADO, TEXTO_MOVILIDAD, TEXTO_TIPO_UNIDAD, ventanaDeRecogida } from './textos'
 
 /** El traslado sale de la lista que ya está en caché: no hay un endpoint de detalle para el ciudadano. */
 export function PantallaTraslado() {
@@ -63,6 +63,20 @@ export function PantallaTraslado() {
             {EXPLICACION_ESTADO[traslado.estado]}
           </Paragraph>
         </YStack>
+
+        {yaEsHoraDeSalir(traslado.estado) ? (
+          <YStack gap={6} p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
+            <Text fontSize={12} fontWeight="600" color="$textoTenue" letterSpacing={0.6}>
+              VENTANA DE RECOGIDA
+            </Text>
+            <Text fontSize={20} lineHeight={26} fontWeight="600" color="$texto">
+              {ventanaDeRecogida(traslado)}
+            </Text>
+            <Paragraph color="$textoSecundario" fontSize={13} lineHeight={18}>
+              Es un rango, no una hora exacta. Conviene estar listo desde la primera hora.
+            </Paragraph>
+          </YStack>
+        ) : null}
 
         <YStack gap={10} p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
           <Dato etiqueta="Cuándo" valor={cuando(traslado)} />

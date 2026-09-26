@@ -7,9 +7,9 @@ import { Button, H1, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 import { Insignia } from '@/shared/ui/Insignia'
 
-import { trasladoVigente, type EstadoTraslado, type Traslado } from './api'
+import { trasladoVigente, yaEsHoraDeSalir, type EstadoTraslado, type Traslado } from './api'
 import { misTrasladosQuery } from './queries'
-import { TEXTO_ESTADO } from './textos'
+import { TEXTO_ESTADO, ventanaDeRecogida } from './textos'
 
 /**
  * Los traslados del ciudadano: los próximos arriba y el historial abajo. El que repite entra por "Pedir otra
@@ -123,9 +123,17 @@ function TarjetaTraslado({ traslado }: { traslado: Traslado }) {
         </Text>
         <Insignia tono={TONO[traslado.estado]}>{TEXTO_ESTADO[traslado.estado]}</Insignia>
       </XStack>
-      <Text fontSize={13} color="$textoSecundario">
-        {cuando(traslado)}
-      </Text>
+      {/* Cuando ya es hora de salir, la ventana contesta mejor el "cuándo" que la hora de la cita: es lo que
+          la familia mira para bajar a la puerta. La cita sigue estando en el detalle. */}
+      {yaEsHoraDeSalir(traslado.estado) ? (
+        <Text fontSize={13} fontWeight="500" color="$texto">
+          {ventanaDeRecogida(traslado)}
+        </Text>
+      ) : (
+        <Text fontSize={13} color="$textoSecundario">
+          {cuando(traslado)}
+        </Text>
+      )}
       <Text fontSize={13} color="$textoSecundario" numberOfLines={1}>
         {traslado.origenReferencia ?? 'Origen en el mapa'} → {traslado.centroSaludDestino ?? 'Destino en el mapa'}
       </Text>
