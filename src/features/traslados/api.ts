@@ -28,6 +28,9 @@ export type Traslado = {
   horaCita: string | null
   horaSalidaEstimada: string
   horaLimiteSalida: string
+  /** La ventana que se promete: cuándo pasa la unidad por el origen, no cuándo sale de donde esté. */
+  horaRecogidaDesde: string | null
+  horaRecogidaHasta: string | null
   pasajero: string
   movilidad: Movilidad
   oxigeno: boolean

@@ -24,13 +24,20 @@ export const EXPLICACION_ESTADO: Record<EstadoTraslado, string> = {
 }
 
 /**
- * Una ventana y no una hora exacta: entre la salida estimada y la última salida posible hay un margen que el
- * tráfico se come, y prometer "9:12" es prometer un minuto que nadie puede sostener. Si el margen queda dentro
- * del mismo minuto, "entre 09:00 y 09:00" parece un error, así que ahí va una sola hora.
+ * Una ventana y no una hora exacta: hay un margen que el tráfico se come, y prometer "9:12" es prometer un minuto
+ * que nadie puede sostener. Las horas son las de recogida, que es lo que le importa a la familia: la unidad tarda
+ * en llegar a la puerta después de salir. Si la ventana cae dentro del mismo minuto, va una sola hora.
  */
-export function ventanaDeRecogida(traslado: Traslado): string {
-  const desde = horaCorta(traslado.horaSalidaEstimada)
-  const hasta = horaCorta(traslado.horaLimiteSalida)
+export function ventanaDeRecogida(traslado: Traslado): string | null {
+  if (!traslado.horaRecogidaDesde || !traslado.horaRecogidaHasta) {
+    return null
+  }
+  // El comienzo ya pasó: decir "entre 09:00 y 09:40" a las 09:30 suena a que se atrasaron cuando no es así.
+  if (new Date(traslado.horaRecogidaDesde).getTime() < Date.now()) {
+    return `Pasan antes de las ${horaCorta(traslado.horaRecogidaHasta)}`
+  }
+  const desde = horaCorta(traslado.horaRecogidaDesde)
+  const hasta = horaCorta(traslado.horaRecogidaHasta)
   return desde === hasta ? `Pasan cerca de las ${desde}` : `Pasan entre ${desde} y ${hasta}`
 }
 
