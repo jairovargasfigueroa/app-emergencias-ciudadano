@@ -70,7 +70,7 @@ export function PantallaTraslado() {
             </Paragraph>
           </YStack>
 
-          {yaEsHoraDeSalir(traslado.estado) ? (
+          {yaEsHoraDeSalir(traslado.estado) && ventanaDeRecogida(traslado) ? (
             <YStack gap={6} p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
               <Text fontSize={12} fontWeight="600" color="$textoTenue" letterSpacing={0.6}>
                 VENTANA DE RECOGIDA

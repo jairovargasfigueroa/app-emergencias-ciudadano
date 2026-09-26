@@ -125,7 +125,7 @@ function TarjetaTraslado({ traslado }: { traslado: Traslado }) {
       </XStack>
       {/* Cuando ya es hora de salir, la ventana contesta mejor el "cuándo" que la hora de la cita: es lo que
           la familia mira para bajar a la puerta. La cita sigue estando en el detalle. */}
-      {yaEsHoraDeSalir(traslado.estado) ? (
+      {yaEsHoraDeSalir(traslado.estado) && ventanaDeRecogida(traslado) ? (
         <Text fontSize={13} fontWeight="500" color="$texto">
           {ventanaDeRecogida(traslado)}
         </Text>
