@@ -1,9 +1,10 @@
+import Feather from '@expo/vector-icons/Feather'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, H1, Input, Paragraph, Sheet, Text, XStack, YStack, useToastController } from 'tamagui'
+import { Button, H1, Input, Paragraph, Sheet, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
 
 import { obtenerUbicacionGps, ultimaUbicacionReciente, type Coordenadas } from '@/features/alerta/ubicacion'
 import { personasQuery } from '@/features/personas/queries'
@@ -27,6 +28,7 @@ type Hoja = 'quien' | 'como' | 'destino' | 'cuando' | null
  */
 export function PantallaPedirTraslado() {
   const margenes = useSafeAreaInsets()
+  const tema = useTheme()
   const queryClient = useQueryClient()
   const toast = useToastController()
   const ciudadano = useQuery(ciudadanoQuery()).data
@@ -130,6 +132,23 @@ export function PantallaPedirTraslado() {
         contentContainerStyle={{ paddingTop: margenes.top + 16, paddingBottom: 32, paddingHorizontal: 20 }}
       >
         <YStack gap={20}>
+          {/* La pantalla se abre con push sobre las pestañas y el stack no dibuja cabecera: sin esto solo se sale
+              con el gesto del teléfono, que no todos conocen. */}
+          <XStack>
+            <Button
+              width={48}
+              height={48}
+              p={0}
+              rounded={999}
+              bg="$superficie"
+              borderColor="$borde"
+              aria-label="Volver"
+              onPress={() => router.back()}
+            >
+              <Feather name="arrow-left" size={20} color={tema.texto?.val} />
+            </Button>
+          </XStack>
+
           <YStack gap={4}>
             <H1 color="$texto" fontSize={24} lineHeight={30} fontWeight="600">
               Pedir traslado

@@ -1,9 +1,10 @@
+import Feather from '@expo/vector-icons/Feather'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, H1, Paragraph, Text, XStack, YStack, useToastController } from 'tamagui'
+import { Button, H1, Paragraph, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
 
 import { mensajeDeError } from '@/shared/api/cliente'
 
@@ -15,6 +16,7 @@ import { EXPLICACION_ESTADO, TEXTO_ESTADO, TEXTO_MOVILIDAD, TEXTO_TIPO_UNIDAD, v
 /** El traslado sale de la lista que ya está en caché: no hay un endpoint de detalle para el ciudadano. */
 export function PantallaTraslado() {
   const margenes = useSafeAreaInsets()
+  const tema = useTheme()
   const queryClient = useQueryClient()
   const toast = useToastController()
   const { trasladoId } = useLocalSearchParams<{ trasladoId: string }>()
@@ -58,6 +60,23 @@ export function PantallaTraslado() {
         contentContainerStyle={{ paddingTop: margenes.top + 16, paddingBottom: 32, paddingHorizontal: 20 }}
       >
         <YStack gap={20}>
+          {/* La pantalla se abre con push sobre las pestañas y el stack no dibuja cabecera: sin esto solo se sale
+              con el gesto del teléfono, que no todos conocen. */}
+          <XStack>
+            <Button
+              width={48}
+              height={48}
+              p={0}
+              rounded={999}
+              bg="$superficie"
+              borderColor="$borde"
+              aria-label="Volver"
+              onPress={() => router.back()}
+            >
+              <Feather name="arrow-left" size={20} color={tema.texto?.val} />
+            </Button>
+          </XStack>
+
           <YStack gap={4}>
             <Text fontSize={12} fontWeight="600" color="$textoTenue" letterSpacing={0.6}>
               {TEXTO_ESTADO[traslado.estado].toUpperCase()}
