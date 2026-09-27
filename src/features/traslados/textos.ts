@@ -1,4 +1,5 @@
 import { horaCorta } from '@/shared/formato/tiempo'
+import type { TonoInsignia } from '@/shared/ui/Insignia'
 
 import type { EstadoTraslado, Movilidad, TipoUnidad, Traslado } from './api'
 
@@ -11,6 +12,16 @@ export const TEXTO_ESTADO: Record<EstadoTraslado, string> = {
   NO_REALIZADO: 'No se realizó',
   NO_CUBIERTO: 'No se pudo cubrir',
   CANCELADO: 'Cancelado',
+}
+
+export const TONO_ESTADO: Record<EstadoTraslado, TonoInsignia> = {
+  PROGRAMADO: 'gris',
+  BUSCANDO_UNIDAD: 'ambar',
+  ASIGNADO: 'verde',
+  COMPLETADO: 'gris',
+  NO_REALIZADO: 'gris',
+  NO_CUBIERTO: 'ambar',
+  CANCELADO: 'gris',
 }
 
 export const EXPLICACION_ESTADO: Record<EstadoTraslado, string> = {

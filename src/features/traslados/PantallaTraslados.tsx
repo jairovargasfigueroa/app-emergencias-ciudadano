@@ -5,11 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, H1, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui'
 
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
-import { Insignia } from '@/shared/ui/Insignia'
 
-import { trasladoVigente, yaEsHoraDeSalir, type EstadoTraslado, type Traslado } from './api'
+import { trasladoVigente } from './api'
 import { misTrasladosQuery } from './queries'
-import { TEXTO_ESTADO, ventanaDeRecogida } from './textos'
+import { TarjetaTraslado } from './TarjetaTraslado'
 
 /**
  * Los traslados del ciudadano: los próximos arriba y el historial abajo. El que repite entra por "Pedir otra
@@ -93,60 +92,4 @@ function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode
       <YStack gap={10}>{children}</YStack>
     </YStack>
   )
-}
-
-const TONO: Record<EstadoTraslado, 'verde' | 'ambar' | 'gris'> = {
-  PROGRAMADO: 'gris',
-  BUSCANDO_UNIDAD: 'ambar',
-  ASIGNADO: 'verde',
-  COMPLETADO: 'gris',
-  NO_REALIZADO: 'gris',
-  NO_CUBIERTO: 'ambar',
-  CANCELADO: 'gris',
-}
-
-function TarjetaTraslado({ traslado }: { traslado: Traslado }) {
-  return (
-    <YStack
-      gap={6}
-      p={14}
-      rounded={14}
-      bg="$superficie"
-      borderWidth={1}
-      borderColor="$borde"
-      pressStyle={{ bg: '$fondo' }}
-      onPress={() => router.push({ pathname: '/traslado/[trasladoId]', params: { trasladoId: String(traslado.id) } })}
-    >
-      <XStack items="center" justify="space-between" gap={8}>
-        <Text fontSize={16} fontWeight="600" color="$texto" flex={1} numberOfLines={1}>
-          {traslado.pasajero}
-        </Text>
-        <Insignia tono={TONO[traslado.estado]}>{TEXTO_ESTADO[traslado.estado]}</Insignia>
-      </XStack>
-      {/* Cuando ya es hora de salir, la ventana contesta mejor el "cuándo" que la hora de la cita: es lo que
-          la familia mira para bajar a la puerta. La cita sigue estando en el detalle. */}
-      {yaEsHoraDeSalir(traslado.estado) && ventanaDeRecogida(traslado) ? (
-        <Text fontSize={13} fontWeight="500" color="$texto">
-          {ventanaDeRecogida(traslado)}
-        </Text>
-      ) : (
-        <Text fontSize={13} color="$textoSecundario">
-          {cuando(traslado)}
-        </Text>
-      )}
-      <Text fontSize={13} color="$textoSecundario" numberOfLines={1}>
-        {traslado.origenReferencia ?? 'Origen en el mapa'} → {traslado.centroSaludDestino ?? 'Destino en el mapa'}
-      </Text>
-    </YStack>
-  )
-}
-
-function cuando(traslado: Traslado) {
-  if (!traslado.horaCita) {
-    return 'Pedido para lo antes posible'
-  }
-  const fecha = new Date(traslado.horaCita)
-  const dia = fecha.toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'short' })
-  const hora = fecha.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
-  return `${dia} · tiene que estar ${hora}`
 }
