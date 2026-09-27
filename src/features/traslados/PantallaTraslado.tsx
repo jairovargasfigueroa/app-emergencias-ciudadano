@@ -197,9 +197,13 @@ function cuando(traslado: Traslado) {
 }
 
 function necesita(traslado: Traslado) {
-  const marcadas = [traslado.oxigeno ? 'oxígeno' : null, traslado.equipo ? 'vía o sonda' : null].filter(
-    (texto): texto is string => texto !== null,
-  )
+  // El aislamiento se pide en el formulario y viaja al servidor: si no se lista acá, el ciudadano marca algo
+  // que después no puede ni revisar ni corregir.
+  const marcadas = [
+    traslado.oxigeno ? 'oxígeno' : null,
+    traslado.equipo ? 'vía o sonda' : null,
+    traslado.aislamiento ? 'aislamiento' : null,
+  ].filter((texto): texto is string => texto !== null)
   return marcadas.length === 0 ? 'Nada en particular' : marcadas.join(' · ')
 }
 
