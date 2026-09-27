@@ -29,3 +29,28 @@ export function horaCorta(iso: string): string {
   const fecha = new Date(iso)
   return `${String(fecha.getHours()).padStart(2, '0')}:${String(fecha.getMinutes()).padStart(2, '0')}`
 }
+
+/**
+ * "Hoy", "Mañana", "Ayer" o "miércoles, 12 sept": el día dicho como lo diría alguien. Un traslado se pide tanto
+ * para dentro de una hora como para dentro de tres días, así que el futuro cercano también tiene nombre propio.
+ */
+export function diaNatural(iso: string, ahora: number = Date.now()): string {
+  const fecha = new Date(iso)
+  const dias = diasDeDiferencia(fecha, new Date(ahora))
+  if (dias === 0) {
+    return 'Hoy'
+  }
+  if (dias === 1) {
+    return 'Ayer'
+  }
+  if (dias === -1) {
+    return 'Mañana'
+  }
+  return fecha.toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'short' })
+}
+
+/** Días de calendario entre dos fechas, no ventanas de 24 h: a las 00:30 lo de las 23:50 fue ayer, no hace un rato. */
+function diasDeDiferencia(fecha: Date, ahora: Date): number {
+  const medianoche = (dia: Date) => new Date(dia.getFullYear(), dia.getMonth(), dia.getDate()).getTime()
+  return Math.round((medianoche(ahora) - medianoche(fecha)) / 86_400_000)
+}
