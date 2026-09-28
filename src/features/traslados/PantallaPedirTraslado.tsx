@@ -49,7 +49,7 @@ export function PantallaPedirTraslado() {
   const { desde, modo } = useLocalSearchParams<{ desde?: string; modo?: 'cambiar' }>()
   const conBase = desde !== undefined
   const traslados = useQuery({ ...misTrasladosQuery(), enabled: conBase })
-  // Quién viaja se reconoce por el nombre entre las personas guardadas: tienen que estar antes de armar el pedido.
+  // Las personas guardadas tienen que estar antes de armar el pedido: si quien viajó ya no está, se pregunta.
   const personas = useQuery({ ...personasQuery(), enabled: conBase })
 
   if (!conBase) {
@@ -161,12 +161,16 @@ function FormularioDelPedido({ base, cambiando = false }: { base?: Traslado; cam
     }
   }, [])
 
+  // Al cambiar el pedido, quién viaja no se toca: sería otro viaje, y el servidor lo deja como estaba.
   const pasajero =
-    pasajeroId === undefined
-      ? 'Elegir'
-      : pasajeroId === null
-        ? (ciudadano?.nombreCompleto ?? 'Yo')
-        : (personas.data?.find((persona) => persona.id === pasajeroId)?.nombreCompleto ?? 'Elegir')
+    cambiando && base
+      ? base.pasajero
+      : pasajeroId === undefined
+        ? 'Elegir'
+        : pasajeroId === null
+          ? (ciudadano?.nombreCompleto ?? 'Yo')
+          : (personas.data?.find((persona) => persona.id === pasajeroId)?.nombreCompleto ?? 'Elegir')
+  const faltaPasajero = pasajeroId === undefined && !cambiando
 
   const textoDestino = centro ? centro.nombre : destino ? 'Punto marcado en el mapa' : 'Elegir'
   const textoCuando =
@@ -190,7 +194,7 @@ function FormularioDelPedido({ base, cambiando = false }: { base?: Traslado; cam
   if (!centro && !destino) {
     faltas.destino = 'Falta a dónde lo llevamos: márcalo en "A dónde" o elige un centro de salud.'
   }
-  if (pasajeroId === undefined) {
+  if (faltaPasajero) {
     faltas.pasajero = 'Elige quién viaja.'
   }
   if (dia === undefined) {
@@ -200,13 +204,13 @@ function FormularioDelPedido({ base, cambiando = false }: { base?: Traslado; cam
 
   function enviar() {
     setIntentado(true)
-    if (!escrito.success || !origen || (!centro && !destino) || pasajeroId === undefined || dia === undefined) {
+    if (!escrito.success || !origen || (!centro && !destino) || faltaPasajero || dia === undefined) {
       toast.show('Revisa el pedido', { message: Object.values(faltas).find(Boolean) })
       return
     }
     const datos = escrito.data
     const pedido: PedirTraslado = {
-      pasajeroId,
+      pasajeroId: pasajeroId ?? null,
       movilidad,
       oxigeno,
       equipo,
@@ -323,7 +327,11 @@ function FormularioDelPedido({ base, cambiando = false }: { base?: Traslado; cam
 
           <YStack gap={6}>
             <YStack rounded={14} borderWidth={1} borderColor="$borde" overflow="hidden">
-              <Fila etiqueta="Quién viaja" valor={pasajero} onPress={() => setHoja('quien')} />
+              <Fila
+                etiqueta="Quién viaja"
+                valor={pasajero}
+                onPress={cambiando ? undefined : () => setHoja('quien')}
+              />
               <Fila
                 etiqueta="Cómo viaja"
                 valor={`${TEXTO_MOVILIDAD[movilidad]}${oxigeno ? ' · Oxígeno' : ''}${equipo ? ' · Equipo' : ''}${aislamiento ? ' · Aislamiento' : ''}`}
@@ -538,15 +546,13 @@ function juntar(...errores: (string | null | undefined)[]) {
 
 /**
  * Quién viajó en `base`, como lo entiende el formulario: `null` si fue quien pide y el id si fue una de sus personas.
- * El servidor manda el nombre y no el id, así que se lo busca por nombre. Si no se lo reconoce —la persona se quitó
- * del perfil, o hay dos con el mismo nombre— queda `undefined` y se pregunta en vez de adivinar.
+ * Si esa persona ya no está en el perfil, queda `undefined` y se pregunta: a quien se quitó no se le piden viajes.
  */
 function pasajeroDe(base: Traslado, ciudadano: Ciudadano | null | undefined, personas: Persona[]) {
-  const candidatos: (number | null)[] = [
-    ...(ciudadano?.nombreCompleto === base.pasajero ? [null] : []),
-    ...personas.filter((persona) => persona.nombreCompleto === base.pasajero).map((persona) => persona.id),
-  ]
-  return candidatos.length === 1 ? candidatos[0] : undefined
+  if (ciudadano?.id === base.pasajeroId) {
+    return null
+  }
+  return personas.some((persona) => persona.id === base.pasajeroId) ? base.pasajeroId : undefined
 }
 
 /** El día de la cita a la medianoche del teléfono, que es como vienen los días del selector. */
@@ -591,6 +597,7 @@ function horaCitaComoIso(dia: Date, hora: string) {
   return fecha.toISOString()
 }
 
+/** Sin `onPress` la fila solo informa: no se resalta al tocarla ni lleva la flecha. */
 function Fila({
   etiqueta,
   valor,
@@ -599,7 +606,7 @@ function Fila({
 }: {
   etiqueta: string
   valor: string
-  onPress: () => void
+  onPress?: () => void
   ultima?: boolean
 }) {
   return (
@@ -611,7 +618,7 @@ function Fila({
       bg="$superficie"
       borderBottomWidth={ultima ? 0 : 1}
       borderColor="$borde"
-      pressStyle={{ bg: '$fondo' }}
+      pressStyle={onPress ? { bg: '$fondo' } : undefined}
       onPress={onPress}
     >
       <YStack flex={1} gap={2} minW={0}>
@@ -622,9 +629,11 @@ function Fila({
           {valor}
         </Text>
       </YStack>
-      <Text fontSize={18} color="$textoTenue">
-        ›
-      </Text>
+      {onPress ? (
+        <Text fontSize={18} color="$textoTenue">
+          ›
+        </Text>
+      ) : null}
     </XStack>
   )
 }

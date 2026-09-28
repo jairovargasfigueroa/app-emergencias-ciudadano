@@ -46,6 +46,8 @@ export type Traslado = {
   /** La ventana que se promete: cuándo pasa la unidad por el origen, no cuándo sale de donde esté. */
   horaRecogidaDesde: string | null
   horaRecogidaHasta: string | null
+  /** Quién viaja: el propio ciudadano o una de sus personas. Con esto se vuelve a pedir el mismo viaje. */
+  pasajeroId: number
   pasajero: string
   movilidad: Movilidad
   oxigeno: boolean
