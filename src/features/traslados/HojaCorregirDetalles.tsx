@@ -138,11 +138,11 @@ export function HojaCorregirDetalles({ abierta, traslado, onCerrar }: Props) {
           />
           <MensajeDeCampo
             texto={
-              intentado && contactoIncompleto ? 'Poné el nombre y el teléfono, o dejá los dos vacíos.' : null
+              intentado && contactoIncompleto ? 'Pon el nombre y el teléfono, o deja los dos vacíos.' : null
             }
           />
           <Text fontSize={12} lineHeight={17} color="$textoSecundario">
-            Dejalo vacío si vas a estar vos. Sirve cuando el que pide no es el que abre la puerta.
+            Déjalo vacío si vas a estar tú. Sirve cuando el que pide no es el que abre la puerta.
           </Text>
         </YStack>
 

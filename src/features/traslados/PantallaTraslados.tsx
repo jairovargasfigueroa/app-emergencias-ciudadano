@@ -51,7 +51,7 @@ export function PantallaTraslados() {
           </XStack>
         ) : traslados.isError ? (
           <Text fontSize={14} color="$textoSecundario">
-            No pudimos cargar tus traslados. Bajá para reintentar.
+            No pudimos cargar tus traslados. Baja para reintentar.
           </Text>
         ) : (
           <>
