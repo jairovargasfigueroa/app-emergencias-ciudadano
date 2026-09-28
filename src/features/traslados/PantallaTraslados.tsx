@@ -1,8 +1,10 @@
+import Feather from '@expo/vector-icons/Feather'
 import { useQuery } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { ScrollView } from 'react-native'
+import { useState } from 'react'
+import { RefreshControl, ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, H1, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui'
+import { Button, H1, Paragraph, Spinner, Text, XStack, YStack, useTheme } from 'tamagui'
 
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
@@ -16,7 +18,26 @@ import { TarjetaTraslado } from './TarjetaTraslado'
  */
 export function PantallaTraslados() {
   const margenes = useSafeAreaInsets()
+  const tema = useTheme()
   const traslados = useQuery(misTrasladosQuery())
+  const [refrescando, setRefrescando] = useState(false)
+
+  // El indicador es solo el del refresco que se pidió con el dedo: el automático de cada medio minuto no tiene por
+  // qué mostrar nada. Sin señal la consulta queda en pausa, y ahí el indicador no se queda girando.
+  async function refrescar() {
+    setRefrescando(true)
+    await traslados.refetch()
+    setRefrescando(false)
+  }
+
+  // Con la lista ya cargada, un refresco que falla no la tapa: se sigue viendo lo último que se supo, con un aviso.
+  const aviso = !traslados.data
+    ? null
+    : traslados.fetchStatus === 'paused'
+      ? 'Sin conexión. La lista se actualiza sola cuando vuelva la señal.'
+      : traslados.isRefetchError
+        ? 'No pudimos actualizar la lista. Desliza hacia abajo para reintentar.'
+        : null
 
   // Los próximos van por la fecha del viaje, el más cercano arriba: el de mañana importa antes que el de la semana
   // que viene, aunque se haya pedido después. El historial queda como viene, del más reciente al más viejo.
@@ -29,6 +50,17 @@ export function PantallaTraslados() {
     <ScrollView
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingTop: margenes.top + 16, paddingBottom: 24, paddingHorizontal: 20 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refrescando && traslados.fetchStatus === 'fetching'}
+          onRefresh={refrescar}
+          tintColor={tema.primario?.val}
+          colors={tema.primario ? [tema.primario.val] : undefined}
+          progressBackgroundColor={tema.superficie?.val}
+          // En Android el indicador sale desde arriba de todo: sin esto queda debajo de la barra de estado.
+          progressViewOffset={margenes.top}
+        />
+      }
     >
       <YStack gap={20}>
         <YStack gap={4}>
@@ -46,19 +78,30 @@ export function PantallaTraslados() {
           </Button.Text>
         </BotonPrincipal>
 
-        {traslados.isPending ? (
-          <XStack items="center" gap={8} py={12}>
-            <Spinner size="small" color="$textoSecundario" />
-            <Text fontSize={14} color="$textoSecundario">
-              Cargando tus traslados…
+        {!traslados.data ? (
+          traslados.isError ? (
+            <Text fontSize={14} lineHeight={20} color="$textoSecundario">
+              No pudimos cargar tus traslados. Desliza hacia abajo para reintentar.
             </Text>
-          </XStack>
-        ) : traslados.isError ? (
-          <Text fontSize={14} color="$textoSecundario">
-            No pudimos cargar tus traslados. Baja para reintentar.
-          </Text>
+          ) : (
+            <XStack items="center" gap={8} py={12}>
+              <Spinner size="small" color="$textoSecundario" />
+              <Text fontSize={14} color="$textoSecundario">
+                Cargando tus traslados…
+              </Text>
+            </XStack>
+          )
         ) : (
           <>
+            {aviso ? (
+              <XStack items="center" gap={8} px={12} py={10} rounded={12} bg="$enAtencionTinte">
+                <Feather name="alert-circle" size={16} color={tema.enAtencionTexto?.val} />
+                <Text color="$enAtencionTexto" fontSize={13} lineHeight={18} flex={1}>
+                  {aviso}
+                </Text>
+              </XStack>
+            ) : null}
+
             {proximos.length > 0 ? (
               <Grupo titulo="Próximos">
                 {proximos.map((traslado) => (
