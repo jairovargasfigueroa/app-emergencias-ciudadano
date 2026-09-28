@@ -1,5 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StyleSheet, useColorScheme } from 'react-native'
 import MapView, { Marker, type Details, type Region } from 'react-native-maps'
 import { Text, XStack, YStack, useTheme } from 'tamagui'
@@ -88,16 +88,19 @@ export function MapaDelPedido({ origen, destino, activo, onCambiarActivo, onMove
   // Lo que el pin marca ahora. Si el punto activo cambia a otro lugar, no fue el dedo: lo cambió la app —el GPS que
   // llegó tarde, un centro de salud, la otra pestaña— y la cámara va hasta él para que el pin lo marque.
   const marcado = useRef<Coordenadas | null>(origen)
+  // Mientras carga, el mapa ignora que se le mueva la cámara. Lo que llegó antes —la última posición conocida suele
+  // llegar primero— se muestra cuando está listo.
+  const [listo, setListo] = useState(false)
 
   useEffect(() => {
-    if (!puntoActivo || (marcado.current && mismoPunto(puntoActivo, marcado.current))) {
+    if (!listo || !puntoActivo || (marcado.current && mismoPunto(puntoActivo, marcado.current))) {
       return
     }
     marcado.current = puntoActivo
     // Mover la cámara por código no es elegir: un toque de antes que no movió nada no tiene que contar ahora.
     tocoElMapa.current = false
     mapa.current?.animateToRegion(regionAlrededorDe(puntoActivo, DELTA_CALLE), 300)
-  }, [puntoActivo])
+  }, [listo, puntoActivo])
 
   function alDetenerse(region: Region, detalles: Details) {
     const antes = camara.current
@@ -132,6 +135,7 @@ export function MapaDelPedido({ origen, destino, activo, onCambiarActivo, onMove
           showsMyLocationButton
           // Tocar el punto del otro extremo no mueve la cámara hasta él: sería un movimiento que nadie eligió.
           moveOnMarkerPress={false}
+          onMapReady={() => setListo(true)}
           onTouchStart={marcarToque}
           onTouchMove={marcarToque}
           onRegionChangeComplete={alDetenerse}
