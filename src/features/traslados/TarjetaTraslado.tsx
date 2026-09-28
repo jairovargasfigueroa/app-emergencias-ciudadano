@@ -5,7 +5,7 @@ import { Text, XStack, YStack, useTheme } from 'tamagui'
 import { diaNatural, horaCorta } from '@/shared/formato/tiempo'
 import { Insignia } from '@/shared/ui/Insignia'
 
-import { yaEsHoraDeSalir, type Traslado } from './api'
+import type { Traslado } from './api'
 import { RutaDelTraslado } from './RutaDelTraslado'
 import { TEXTO_ESTADO, TONO_ESTADO, ventanaDeRecogida } from './textos'
 
@@ -15,9 +15,9 @@ import { TEXTO_ESTADO, TONO_ESTADO, ventanaDeRecogida } from './textos'
  */
 export function TarjetaTraslado({ traslado }: { traslado: Traslado }) {
   const tema = useTheme()
-  // Cuando ya es hora de salir, la ventana contesta mejor el "cuándo" que la hora de la cita: es lo que la
-  // familia mira para bajar a la puerta. La cita sigue estando en el detalle.
-  const ventana = yaEsHoraDeSalir(traslado.estado) ? ventanaDeRecogida(traslado) : null
+  // Desde que se pide, la ventana contesta mejor el "cuándo" que la hora de la cita: es lo que la familia mira
+  // para bajar a la puerta. El día va en la línea de arriba y la cita sigue estando en el detalle.
+  const ventana = ventanaDeRecogida(traslado)
 
   return (
     <YStack
@@ -53,7 +53,7 @@ export function TarjetaTraslado({ traslado }: { traslado: Traslado }) {
           fontWeight={ventana ? '600' : '400'}
           color={ventana ? '$texto' : '$textoSecundario'}
           flex={1}
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {ventana ?? horaPedida(traslado)}
         </Text>
@@ -63,7 +63,10 @@ export function TarjetaTraslado({ traslado }: { traslado: Traslado }) {
   )
 }
 
-/** Todavía sin ventana: lo que contesta el "cuándo" es la hora a la que tiene que estar; sin cita, que es para ya. */
+/**
+ * Sin ventana —el traslado terminó o la unidad ya está en la puerta— lo que contesta el "cuándo" es la hora a la
+ * que tenía que estar; sin cita, que era para ya.
+ */
 function horaPedida(traslado: Traslado) {
   return traslado.horaCita ? `Tiene que estar ${horaCorta(traslado.horaCita)}` : 'Lo antes posible'
 }

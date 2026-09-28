@@ -9,6 +9,16 @@ export type EstadoTraslado =
   | 'NO_CUBIERTO'
   | 'CANCELADO'
 
+/** `EstadoAtencion` del backend: en qué va la unidad que tiene el traslado. */
+export type EstadoUnidad =
+  | 'EN_CAMINO'
+  | 'EN_EL_LUGAR'
+  | 'PACIENTE_RECOGIDO'
+  | 'EN_HOSPITAL'
+  | 'PACIENTE_ENTREGADO'
+  | 'SIN_TRASLADO'
+  | 'CANCELADA'
+
 export type ModoHorario = 'INMEDIATO' | 'PROGRAMADO'
 
 export type Movilidad = 'CAMINA_CON_AYUDA' | 'SILLA_DE_RUEDAS' | 'CAMILLA'
@@ -24,6 +34,11 @@ export type Ubicacion = {
 export type Traslado = {
   id: number
   estado: EstadoTraslado
+  /**
+   * En qué va la unidad que lo tiene. Solo viene en `ASIGNADO`, `COMPLETADO` y `NO_REALIZADO`; mientras no salió
+   * nadie es `null`. Dice hasta cuándo se puede cancelar: hasta que la unidad llega a la puerta.
+   */
+  estadoUnidad: EstadoUnidad | null
   modoHorario: ModoHorario
   horaCita: string | null
   horaSalidaEstimada: string
@@ -31,6 +46,8 @@ export type Traslado = {
   /** La ventana que se promete: cuándo pasa la unidad por el origen, no cuándo sale de donde esté. */
   horaRecogidaDesde: string | null
   horaRecogidaHasta: string | null
+  /** Quién viaja: el propio ciudadano o una de sus personas. Con esto se vuelve a pedir el mismo viaje. */
+  pasajeroId: number
   pasajero: string
   movilidad: Movilidad
   oxigeno: boolean
@@ -46,6 +63,8 @@ export type Traslado = {
   contactoNombre: string | null
   contactoTelefono: string | null
   destino: Ubicacion
+  /** El centro del catálogo, si el destino es uno. Su punto es `destino`. */
+  centroSaludDestinoId: number | null
   centroSaludDestino: string | null
   destinoDetalle: string | null
   fechaHoraCreacion: string
@@ -96,22 +115,36 @@ export function trasladoVigente(estado: EstadoTraslado) {
   return estado === 'PROGRAMADO' || estado === 'BUSCANDO_UNIDAD' || estado === 'ASIGNADO'
 }
 
-/** Ya hay una unidad en camino: desde acá solo se pueden corregir la referencia y el contacto. */
-export function tieneUnidad(estado: EstadoTraslado) {
-  return estado === 'ASIGNADO'
+/**
+ * Mientras no haya una unidad asignada se puede cambiar el pedido entero: el servidor vuelve a calcular el horario
+ * y la unidad. Con una unidad asignada solo se corrigen la referencia, el contacto y las observaciones.
+ */
+export function sePuedeCambiar(estado: EstadoTraslado) {
+  return estado === 'PROGRAMADO' || estado === 'BUSCANDO_UNIDAD'
+}
+
+/** La unidad ya está en la puerta, o más allá: con el paciente a bordo o en el destino. */
+export function unidadYaLlego(traslado: Traslado) {
+  return traslado.estadoUnidad !== null && traslado.estadoUnidad !== 'EN_CAMINO'
 }
 
 /**
- * Ya llegó la hora de salir: el sistema está buscando la unidad o ya la asignó. Un traslado `PROGRAMADO` puede
- * ser para dentro de tres días y todavía no tiene nada asignado, así que ahí las horas de salida no le dicen
- * nada a la familia.
+ * Como en cualquier central, la familia puede cancelar antes de que salga la unidad o mientras viene. Cuando ya
+ * está en la puerta se habla con la tripulación: el paciente podría estar a bordo.
  */
-export function yaEsHoraDeSalir(estado: EstadoTraslado) {
-  return estado === 'BUSCANDO_UNIDAD' || estado === 'ASIGNADO'
+export function sePuedeCancelar(traslado: Traslado) {
+  return trasladoVigente(traslado.estado) && !unidadYaLlego(traslado)
+}
+
+/** Los que terminaron sin viaje: se vuelven a pedir con los mismos datos, eligiendo de nuevo la fecha. */
+export function sePuedePedirOtraVez(estado: EstadoTraslado) {
+  return estado === 'NO_REALIZADO' || estado === 'NO_CUBIERTO' || estado === 'CANCELADO'
 }
 
 export const trasladosApi = {
   pedir: (datos: PedirTraslado) => api.post<Traslado>('/traslados', datos),
+  /** Mismo cuerpo que pedir. Si ya se asignó una unidad responde `TRASLADO_FINALIZADO`. */
+  cambiar: (id: number, datos: PedirTraslado) => api.put<Traslado>(`/traslados/${id}`, datos),
   mios: (signal?: AbortSignal) => api.get<Traslado[]>('/traslados/mios', { signal }),
   cancelar: (id: number) => api.post<Traslado>(`/traslados/${id}/cancelar`),
   actualizarDetalles: (id: number, datos: DetallesTraslado) =>
