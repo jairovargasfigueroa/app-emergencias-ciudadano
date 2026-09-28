@@ -150,6 +150,16 @@ export function PantallaTraslado() {
               <Dato etiqueta="Cuándo" valor={cuando(traslado)} />
               <Dato etiqueta="Cómo viaja" valor={TEXTO_MOVILIDAD[traslado.movilidad]} />
               <Dato etiqueta="Necesita" valor={necesita(traslado)} />
+              {/* Los dos son opcionales al pedir: si no se dijeron, no hay renglón que diga "no sé". */}
+              {traslado.pesoAproximado !== null ? (
+                <Dato etiqueta="Peso aproximado" valor={`${traslado.pesoAproximado} kg`} />
+              ) : null}
+              {traslado.acompanantes > 0 ? (
+                <Dato
+                  etiqueta="Acompañantes"
+                  valor={traslado.acompanantes === 1 ? '1 persona' : `${traslado.acompanantes} personas`}
+                />
+              ) : null}
               <Dato etiqueta="Unidad" valor={TEXTO_TIPO_UNIDAD[traslado.tipoUnidad]} />
             </YStack>
           </Bloque>
