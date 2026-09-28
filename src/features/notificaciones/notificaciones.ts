@@ -49,7 +49,7 @@ export type PermisoDeAvisos = 'concedido' | 'preguntar' | 'no'
 
 /**
  * Deja listo el canal de Android y dice qué hacer con el permiso. Se pregunta una sola vez: al terminar el registro o,
- * si ya estaba registrado, la primera vez que la app arranca con sesión. Nunca en el camino de pedir ayuda.
+ * si ya estaba registrado, la primera vez que la app arranca con sesión. Nunca al pedir ayuda.
  */
 export async function prepararAvisos(): Promise<PermisoDeAvisos> {
   const Notifications = await cargarNotificaciones()
@@ -68,7 +68,7 @@ export async function prepararAvisos(): Promise<PermisoDeAvisos> {
     if (permiso.granted) {
       return 'concedido'
     }
-    // Android deja pedirlo otra vez después de un primer no: que ya se preguntó queda anotado en el teléfono.
+    // Android deja pedirlo otra vez después de un primer no: por eso lo que ya se preguntó queda anotado aparte.
     return permiso.canAskAgain && !(await permisoYaPreguntado()) ? 'preguntar' : 'no'
   } catch {
     return 'no'
@@ -128,9 +128,8 @@ function idDe(valor: unknown): string | null {
 }
 
 /**
- * Al inicio desde donde esté la app. El seguimiento queda como única pantalla y lo apilado sobre las pestañas se
- * cierra: en los dos casos `volverAlInicio` llega. Parada en otra pestaña no hay nada que cerrar, así que se cambia de
- * pestaña.
+ * Al inicio desde donde esté la app. Desde el seguimiento, que queda como única pantalla, o desde algo apilado sobre
+ * las pestañas, llega `volverAlInicio`. Parada en otra pestaña no hay nada que cerrar, así que se cambia de pestaña.
  */
 function irAlInicio(rutaActual: string) {
   if (rutaActual === '/') {
