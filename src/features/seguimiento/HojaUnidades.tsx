@@ -11,7 +11,7 @@ type Props = {
 
 function encabezado(etapa: EstadoAtencion, unidades: UnidadSeguimiento[]) {
   if (etapa === 'EN_HOSPITAL') {
-    return { titulo: 'Llegaron al centro de salud', detalle: 'Están entregando al paciente.' }
+    return { titulo: 'Llegaron al destino', detalle: 'Están entregando al paciente.' }
   }
   if (etapa === 'PACIENTE_RECOGIDO') {
     return { titulo: 'Paciente recogido', detalle: 'Van camino al centro de salud.' }
