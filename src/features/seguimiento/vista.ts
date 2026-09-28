@@ -2,19 +2,24 @@ import { segundosDesde } from '@/shared/formato/tiempo'
 
 import { esEstadoFinal, type EstadoAtencion, type EstadoIncidente, type Seguimiento } from './api'
 
-/** Pantallas del seguimiento según ME-1 (PB-06, tabla de mapeo de estados). */
+/** Pantallas del seguimiento según ME-1 (PB-06, tabla de mapeo de estados), más el cierre de quien retiró su pedido. */
 export type VistaSeguimiento =
   | { tipo: 'buscando' }
   | { tipo: 'acudiendo'; etapa: EstadoAtencion }
   | { tipo: 'concluido'; estado: EstadoIncidente }
+  | { tipo: 'retirado' }
 
 const ORDEN_ETAPAS: EstadoAtencion[] = ['EN_CAMINO', 'EN_EL_LUGAR', 'PACIENTE_RECOGIDO', 'EN_HOSPITAL']
 
 /**
- * Estado final: concluido. Sin atenciones activas: buscando unidad, también cuando la única unidad canceló y el
- * incidente volvió a `ACTIVO` (R5). Con unidades: la etapa más avanzada entre todas las que acuden.
+ * Pedido retirado: el caso terminó para este teléfono, aunque el incidente siga abierto por otros. Estado final:
+ * concluido. Sin atenciones activas: buscando unidad, también cuando la única unidad canceló y el incidente volvió a
+ * `ACTIVO` (R5). Con unidades: la etapa más avanzada entre todas las que acuden.
  */
-export function vistaDeSeguimiento(seguimiento: Seguimiento | null): VistaSeguimiento {
+export function vistaDeSeguimiento(seguimiento: Seguimiento | null, { retirado = false } = {}): VistaSeguimiento {
+  if (retirado) {
+    return { tipo: 'retirado' }
+  }
   if (!seguimiento) {
     return { tipo: 'buscando' }
   }

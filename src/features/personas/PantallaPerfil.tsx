@@ -64,7 +64,7 @@ export function PantallaPerfil() {
               Mis personas
             </Text>
             <Text fontSize={13} lineHeight={18} color="$textoSecundario">
-              Familiares a los que trasladás y contactos de confianza. Quedan guardados para los próximos pedidos.
+              Familiares a los que trasladas y contactos de confianza. Quedan guardados para los próximos pedidos.
             </Text>
           </YStack>
 

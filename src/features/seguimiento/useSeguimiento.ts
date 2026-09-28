@@ -22,12 +22,15 @@ type Recibido = {
 
 /**
  * Escucha el seguimiento del incidente en tiempo real. Al llegar a un estado final deja de escuchar y conserva ese
- * último estado (PB-06 R4 y CA-07).
+ * último estado (PB-06 R4 y CA-07). También deja de escuchar cuando se le pide, como al retirar el pedido.
  */
-export function useSeguimiento(incidenteId: number): EstadoSeguimiento {
+export function useSeguimiento(incidenteId: number, { escuchar = true } = {}): EstadoSeguimiento {
   const [recibido, setRecibido] = useState<Recibido | null>(null)
 
   useEffect(() => {
+    if (!escuchar) {
+      return
+    }
     let finalizado = false
     let dejarDeEscuchar: (() => void) | null = null
 
@@ -54,7 +57,7 @@ export function useSeguimiento(incidenteId: number): EstadoSeguimiento {
     }
 
     return () => dejarDeEscuchar?.()
-  }, [incidenteId])
+  }, [incidenteId, escuchar])
 
   // Lo recibido de otro incidente no vale: hasta el primer dato de este, se está conectando.
   if (recibido?.incidenteId !== incidenteId) {

@@ -84,15 +84,15 @@ export function PantallaPedirTraslado() {
 
   function enviar() {
     if (!origen) {
-      toast.show('Falta el punto de recogida', { message: 'En el mapa, elegí "De dónde" y dejá el pin ahí.' })
+      toast.show('Falta el punto de recogida', { message: 'En el mapa, elige "De dónde" y deja el pin ahí.' })
       return
     }
     if (!centro && !destino) {
-      toast.show('Falta el destino', { message: 'En el mapa, elegí "A dónde" y dejá el pin ahí.' })
+      toast.show('Falta el destino', { message: 'En el mapa, elige "A dónde" y deja el pin ahí.' })
       return
     }
     if (Boolean(contactoNombre.trim()) !== Boolean(contactoTelefono.trim())) {
-      toast.show('Falta un dato del contacto', { message: 'Poné el nombre y el teléfono, o dejá los dos vacíos.' })
+      toast.show('Falta un dato del contacto', { message: 'Pon el nombre y el teléfono, o deja los dos vacíos.' })
       return
     }
     pedir.mutate(
@@ -214,7 +214,7 @@ export function PantallaPedirTraslado() {
               onChangeText={setContactoTelefono}
             />
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
-              Dejalo vacío si vas a estar vos. Sirve cuando el que pide no es el que abre la puerta.
+              Déjalo vacío si vas a estar tú. Sirve cuando el que pide no es el que abre la puerta.
             </Text>
           </YStack>
 
@@ -301,7 +301,7 @@ export function PantallaPedirTraslado() {
               />
             ))}
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
-              Para agregar a alguien, entrá a tu perfil. Queda guardado para los próximos pedidos.
+              Para agregar a alguien, entra a tu perfil. Queda guardado para los próximos pedidos.
             </Text>
           </>
         ) : null}
@@ -332,7 +332,7 @@ export function PantallaPedirTraslado() {
               onPress={() => setAislamiento(!aislamiento)}
             />
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
-              Con esto elegimos la unidad que corresponde. Es de este viaje: si cambia, en el próximo lo volvés a
+              Con esto elegimos la unidad que corresponde. Es de este viaje: si cambia, en el próximo lo vuelves a
               elegir.
             </Text>
           </>
@@ -342,7 +342,7 @@ export function PantallaPedirTraslado() {
           <>
             <Titulo>¿A dónde lo llevamos?</Titulo>
             <Text fontSize={13} lineHeight={18} color="$textoSecundario">
-              Si va a una casa o a otro lugar, marcalo directo en el mapa de arriba.
+              Si va a una casa o a otro lugar, márcalo directo en el mapa de arriba.
             </Text>
             <AtajoDeCentros
               centros={centros.data ?? []}
@@ -466,7 +466,7 @@ function AtajoDeCentros({
   if (centros.length === 0) {
     return (
       <Text fontSize={12} lineHeight={17} color="$textoSecundario">
-        Todavía no hay centros de salud cargados, así que marcalo en el mapa.
+        Todavía no hay centros de salud cargados, así que márcalo en el mapa.
       </Text>
     )
   }

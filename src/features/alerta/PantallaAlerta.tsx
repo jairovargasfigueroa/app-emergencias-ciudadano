@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { router } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { router, useFocusEffect } from 'expo-router'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, H1, Paragraph, Text, XStack, YStack } from 'tamagui'
@@ -8,7 +8,6 @@ import { Button, H1, Paragraph, Text, XStack, YStack } from 'tamagui'
 import { BotonDemo } from '@/features/demo/BotonDemo'
 import { DEMO } from '@/features/demo/bandera'
 import { ciudadanoQuery } from '@/features/registro/queries'
-import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
 import { MarcaSga } from '@/shared/ui/MarcaSga'
@@ -34,21 +33,25 @@ export function PantallaAlerta() {
   const ciudadano = useQuery(ciudadanoQuery()).data
   const estadoGps = useQuery(estadoGpsQuery())
   const enCurso = useQuery(seguimientoEnCursoQuery()).data
+  // La alerta que sale desde aquí abre su seguimiento una sola vez, en cuanto el servidor la recibe.
   const { enviar, empezarIntento, reintentar, enviando, esperandoConexion, rechazada } =
-    useEnviarAlerta(irAlSeguimiento)
+    useEnviarAlerta(abrirSeguimiento)
   const [buscandoUbicacion, setBuscandoUbicacion] = useState(false)
   const [ofrecerMapa, setOfrecerMapa] = useState(false)
   // Identifica el intento en curso: si el ciudadano se va al mapa, el GPS que llegue tarde se descarta.
   const intento = useRef(0)
-  // Una sola navegación por visita: el caso recién emitido y el ya guardado llevan al mismo seguimiento.
-  const abriendoSeguimiento = useRef(false)
 
-  useEffect(() => {
-    // PB-06: con un caso abierto en el teléfono no se pide ayuda otra vez; el inicio devuelve a su seguimiento.
-    if (enCurso) {
-      irAlSeguimiento(enCurso)
-    }
-  }, [enCurso])
+  useFocusEffect(
+    useCallback(() => {
+      // PB-06: con un caso abierto en el teléfono no se pide ayuda otra vez; el inicio lleva a su seguimiento. Se mira
+      // al llegar al inicio y no cada vez que cambia el caso guardado: el caso recién emitido ya lo abre quien lo
+      // emitió, aquí o en el pin, y abrirlo también desde aquí sería una segunda navegación.
+      const abierto = queryClient.getQueryData(seguimientoEnCursoQuery().queryKey)
+      if (abierto) {
+        abrirSeguimiento(abierto)
+      }
+    }, [queryClient]),
+  )
 
   useEffect(() => {
     prepararPermisoDeUbicacion()
@@ -92,16 +95,8 @@ export function PantallaAlerta() {
     router.push('/pin')
   }
 
-  /** El seguimiento reemplaza al inicio en vez de apilarse: volver atrás no debe devolver al botón (PB-06). */
-  function irAlSeguimiento(seguimiento: SeguimientoGuardado) {
-    if (abriendoSeguimiento.current) {
-      return
-    }
-    abriendoSeguimiento.current = true
-    abrirSeguimiento(seguimiento, { reemplazar: true })
-  }
-
-  // Mientras se abre el seguimiento no se pinta nada del botón: sería una segunda alerta del mismo caso.
+  // Con un caso abierto no se pinta el botón, que sería una segunda alerta del mismo caso: el inicio va camino a su
+  // seguimiento.
   if (enCurso) {
     return <YStack flex={1} bg="$fondo" />
   }

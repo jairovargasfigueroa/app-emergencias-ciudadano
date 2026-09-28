@@ -67,7 +67,7 @@ export function DialogoRetirarPedido({ abierto, enviando, conUnidadEnCamino, onC
           <Paragraph color="$textoSecundario" fontSize={15} lineHeight={22}>
             {conUnidadEnCamino
               ? 'Hay una unidad en camino. Le avisamos, y ella decide si sigue o se vuelve.'
-              : 'Se retira tu pedido y podés volver a pedir ayuda cuando quieras.'}
+              : 'Se retira tu pedido y puedes volver a pedir ayuda cuando quieras.'}
           </Paragraph>
         </YStack>
 

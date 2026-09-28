@@ -112,10 +112,10 @@ export function MapaDelPedido({ origen, destino, activo, onCambiarActivo, onMove
 
       <Text fontSize={12} lineHeight={17} color="$textoSecundario">
         {activo === 'origen'
-          ? 'Mové el mapa hasta dejar el pin donde lo recogemos.'
+          ? 'Mueve el mapa hasta dejar el pin donde lo recogemos.'
           : etiquetaDestino
-            ? `Destino: ${etiquetaDestino}. Mové el mapa si querés otro lugar.`
-            : 'Mové el mapa hasta dejar el pin donde lo llevamos.'}
+            ? `Destino: ${etiquetaDestino}. Mueve el mapa si quieres otro lugar.`
+            : 'Mueve el mapa hasta dejar el pin donde lo llevamos.'}
       </Text>
     </YStack>
   )
