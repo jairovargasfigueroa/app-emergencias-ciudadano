@@ -1,7 +1,7 @@
 import { horaCorta } from '@/shared/formato/tiempo'
 import type { TonoInsignia } from '@/shared/ui/Insignia'
 
-import type { EstadoTraslado, Movilidad, TipoUnidad, Traslado } from './api'
+import type { EstadoTraslado, EstadoUnidad, Movilidad, TipoUnidad, Traslado } from './api'
 
 /** Lo que el ciudadano lee, no lo que el sistema piensa: "sin unidad" no le dice nada a una familia. */
 export const TEXTO_ESTADO: Record<EstadoTraslado, string> = {
@@ -27,11 +27,22 @@ export const TONO_ESTADO: Record<EstadoTraslado, TonoInsignia> = {
 export const EXPLICACION_ESTADO: Record<EstadoTraslado, string> = {
   PROGRAMADO: 'Ese día te asignamos una unidad y te avisamos a qué hora pasa.',
   BUSCANDO_UNIDAD: 'Estamos buscando una ambulancia. Te avisamos apenas la tengamos.',
-  ASIGNADO: 'La unidad ya está asignada y va en camino.',
+  ASIGNADO: 'Ya hay una unidad asignada a este traslado.',
   COMPLETADO: 'El traslado se hizo.',
   NO_REALIZADO: 'La unidad fue, pero el traslado no se llegó a hacer.',
   NO_CUBIERTO: 'No conseguimos una unidad a tiempo. Lamentamos el problema.',
   CANCELADO: 'Retiraste este pedido.',
+}
+
+/**
+ * En qué va la unidad, dicho como lo diría la central. Solo mientras trabaja: cuando termina, lo que pasó ya lo
+ * dice el estado del traslado.
+ */
+export const TEXTO_ESTADO_UNIDAD: Partial<Record<EstadoUnidad, string>> = {
+  EN_CAMINO: 'La unidad va en camino',
+  EN_EL_LUGAR: 'La unidad llegó',
+  PACIENTE_RECOGIDO: 'En viaje al destino',
+  EN_HOSPITAL: 'Llegaron al destino',
 }
 
 /**

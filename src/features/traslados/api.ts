@@ -118,6 +118,19 @@ export function tieneUnidad(estado: EstadoTraslado) {
   return estado === 'ASIGNADO'
 }
 
+/** La unidad ya está en la puerta, o más allá: con el paciente a bordo o en el destino. */
+export function unidadYaLlego(traslado: Traslado) {
+  return traslado.estadoUnidad !== null && traslado.estadoUnidad !== 'EN_CAMINO'
+}
+
+/**
+ * Como en cualquier central, la familia puede cancelar antes de que salga la unidad o mientras viene. Cuando ya
+ * está en la puerta se habla con la tripulación: el paciente podría estar a bordo.
+ */
+export function sePuedeCancelar(traslado: Traslado) {
+  return trasladoVigente(traslado.estado) && !unidadYaLlego(traslado)
+}
+
 /**
  * Ya llegó la hora de salir: el sistema está buscando la unidad o ya la asignó. Un traslado `PROGRAMADO` puede
  * ser para dentro de tres días y todavía no tiene nada asignado, así que ahí las horas de salida no le dicen

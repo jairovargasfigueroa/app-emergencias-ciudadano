@@ -10,13 +10,15 @@ import { mensajeDeError } from '@/shared/api/cliente'
 import { diaNatural, horaCorta } from '@/shared/formato/tiempo'
 import { Insignia } from '@/shared/ui/Insignia'
 
-import { trasladoVigente, yaEsHoraDeSalir, type Traslado } from './api'
+import { sePuedeCancelar, trasladoVigente, yaEsHoraDeSalir, type Traslado } from './api'
 import { cancelarTrasladoMutation, misTrasladosQuery } from './queries'
+import { DialogoCancelarTraslado } from './DialogoCancelarTraslado'
 import { HojaCorregirDetalles } from './HojaCorregirDetalles'
 import { RutaDelTraslado } from './RutaDelTraslado'
 import {
   EXPLICACION_ESTADO,
   TEXTO_ESTADO,
+  TEXTO_ESTADO_UNIDAD,
   TEXTO_MOVILIDAD,
   TEXTO_TIPO_UNIDAD,
   TONO_ESTADO,
@@ -33,6 +35,7 @@ export function PantallaTraslado() {
   const traslados = useQuery(misTrasladosQuery())
   const cancelar = useMutation(cancelarTrasladoMutation(queryClient))
   const [corrigiendo, setCorrigiendo] = useState(false)
+  const [cancelando, setCancelando] = useState(false)
 
   const traslado = traslados.data?.find((item) => String(item.id) === trasladoId)
 
@@ -54,15 +57,22 @@ export function PantallaTraslado() {
   function retirar() {
     cancelar.mutate(traslado!.id, {
       onSuccess: () => {
+        setCancelando(false)
         toast.show('Traslado cancelado')
         router.back()
       },
-      onError: (error) => toast.show('No se pudo cancelar', { message: mensajeDeError(error) }),
+      // Si la unidad llegó mientras la persona decidía, el servidor lo rechaza con el porqué y el detalle se
+      // refresca solo: en vez del botón queda dicho con quién hablar.
+      onError: (error) => {
+        setCancelando(false)
+        toast.show('No se pudo cancelar', { message: mensajeDeError(error) })
+      },
     })
   }
 
   const recibe = quienRecibe(traslado)
   const ventana = yaEsHoraDeSalir(traslado.estado) ? ventanaDeRecogida(traslado) : null
+  const enQueVa = traslado.estadoUnidad ? TEXTO_ESTADO_UNIDAD[traslado.estadoUnidad] : undefined
 
   return (
     <>
@@ -100,6 +110,17 @@ export function PantallaTraslado() {
               {EXPLICACION_ESTADO[traslado.estado]}
             </Paragraph>
           </YStack>
+
+          {/* Con una unidad a cargo, lo que se viene a mirar es en qué va: si todavía viene o si ya está en la
+              puerta, que es también lo que decide si se puede cancelar. */}
+          {enQueVa ? (
+            <XStack items="center" gap={10} px={16} py={14} rounded={14} bg="$disponibleTinte">
+              <Feather name="truck" size={20} color={tema.disponibleTexto?.val} />
+              <Text fontSize={17} lineHeight={22} fontWeight="600" color="$disponibleTexto" flex={1}>
+                {enQueVa}
+              </Text>
+            </XStack>
+          ) : null}
 
           {ventana ? (
             <YStack gap={6} p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
@@ -166,24 +187,32 @@ export function PantallaTraslado() {
                 </Paragraph>
               </YStack>
 
-              <Button
-                height={52}
-                rounded={14}
-                variant="outlined"
-                disabled={cancelar.isPending}
-                opacity={cancelar.isPending ? 0.6 : 1}
-                onPress={retirar}
-              >
-                <Button.Text color="$primario" fontSize={16} fontWeight="600">
-                  Cancelar el traslado
-                </Button.Text>
-              </Button>
+              {sePuedeCancelar(traslado) ? (
+                <Button height={52} rounded={14} variant="outlined" onPress={() => setCancelando(true)}>
+                  <Button.Text color="$primario" fontSize={16} fontWeight="600">
+                    Cancelar el traslado
+                  </Button.Text>
+                </Button>
+              ) : (
+                <YStack p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
+                  <Paragraph color="$texto" fontSize={14} lineHeight={20}>
+                    La unidad ya llegó. Si no van a viajar, díselo a la tripulación.
+                  </Paragraph>
+                </YStack>
+              )}
             </YStack>
           ) : null}
         </YStack>
       </ScrollView>
 
       <HojaCorregirDetalles abierta={corrigiendo} traslado={traslado} onCerrar={() => setCorrigiendo(false)} />
+      <DialogoCancelarTraslado
+        abierto={cancelando}
+        enviando={cancelar.isPending}
+        conUnidadEnCamino={traslado.estadoUnidad === 'EN_CAMINO'}
+        onConfirmar={retirar}
+        onCerrar={() => setCancelando(false)}
+      />
     </>
   )
 }

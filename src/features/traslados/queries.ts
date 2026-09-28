@@ -33,10 +33,14 @@ export const pedirTrasladoMutation = (queryClient: QueryClient) =>
     onSuccess: () => queryClient.invalidateQueries({ queryKey: trasladosKeys.todos }),
   })
 
+/**
+ * Se refresca también si falla: si el servidor lo rechaza porque la unidad llegó mientras tanto, el detalle tiene
+ * que mostrarlo en vez de seguir ofreciendo cancelar.
+ */
 export const cancelarTrasladoMutation = (queryClient: QueryClient) =>
   mutationOptions({
     mutationFn: (trasladoId: number) => trasladosApi.cancelar(trasladoId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: trasladosKeys.todos }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: trasladosKeys.todos }),
   })
 
 /** Corregir la referencia, el contacto o las observaciones. Se puede hasta con la unidad en camino. */
