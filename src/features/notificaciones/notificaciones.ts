@@ -1,10 +1,11 @@
 import { isRunningInExpoGo } from 'expo'
 import { router } from 'expo-router'
-import type { DevicePushToken, NotificationResponse } from 'expo-notifications'
+import type { DevicePushToken, Notification, NotificationResponse } from 'expo-notifications'
 import { Platform } from 'react-native'
 
 import { abrirSeguimiento, volverAlInicio } from '@/features/seguimiento/navegacion'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
+import { trasladosKeys } from '@/features/traslados/queries'
 import { queryClient } from '@/shared/query/queryClient'
 
 import { permisoYaPreguntado, recordarPermisoPreguntado } from './almacen'
@@ -150,6 +151,24 @@ function abrirAvisoDeAlerta(incidenteId: string, alertaId: string, rutaActual: s
   }
 }
 
+/**
+ * Aviso de un traslado: le llega a quien lo pidió, y `tipo` dice qué pasó (UNIDAD_ASIGNADA, UNIDAD_EN_LA_PUERTA,
+ * NUEVA_BUSQUEDA, NO_CUBIERTO o RECORDATORIO). El traslado cambió en el servidor: se vuelve a pedir la lista, para que
+ * el estado nuevo se vea sin tirar para refrescar. Devuelve el id si el aviso era de un traslado.
+ */
+function actualizarPorTraslado(datos: Record<string, unknown> | undefined) {
+  const trasladoId = idDe(datos?.trasladoId)
+  if (trasladoId !== null) {
+    void queryClient.invalidateQueries({ queryKey: trasladosKeys.mios() })
+  }
+  return trasladoId
+}
+
+/** Aviso que llega con la app abierta. Lo muestra el sistema; acá se refresca lo que cambió. */
+export function recibirAviso(notificacion: Notification) {
+  actualizarPorTraslado(notificacion.request.content.data)
+}
+
 /** El aviso que abrió la app se vuelve a leer si el hook se monta otra vez: cada toque se atiende una sola vez. */
 const respuestasAtendidas = new Set<string>()
 
@@ -164,6 +183,14 @@ export function abrirAviso(respuesta: NotificationResponse, rutaActual: string) 
   }
   respuestasAtendidas.add(identificador)
   const datos = respuesta.notification.request.content.data
+  const trasladoId = actualizarPorTraslado(datos)
+  if (trasladoId !== null) {
+    // Con su detalle ya a la vista basta el refresco.
+    if (rutaActual !== `/traslado/${trasladoId}`) {
+      router.push({ pathname: '/traslado/[trasladoId]', params: { trasladoId } })
+    }
+    return
+  }
   const incidenteId = idDe(datos?.incidenteId)
   const alertaId = idDe(datos?.alertaId)
   if (incidenteId !== null && alertaId !== null) {
