@@ -9,6 +9,16 @@ export type EstadoTraslado =
   | 'NO_CUBIERTO'
   | 'CANCELADO'
 
+/** `EstadoAtencion` del backend: en qué va la unidad que tiene el traslado. */
+export type EstadoUnidad =
+  | 'EN_CAMINO'
+  | 'EN_EL_LUGAR'
+  | 'PACIENTE_RECOGIDO'
+  | 'EN_HOSPITAL'
+  | 'PACIENTE_ENTREGADO'
+  | 'SIN_TRASLADO'
+  | 'CANCELADA'
+
 export type ModoHorario = 'INMEDIATO' | 'PROGRAMADO'
 
 export type Movilidad = 'CAMINA_CON_AYUDA' | 'SILLA_DE_RUEDAS' | 'CAMILLA'
@@ -24,6 +34,11 @@ export type Ubicacion = {
 export type Traslado = {
   id: number
   estado: EstadoTraslado
+  /**
+   * En qué va la unidad que lo tiene. Solo viene en `ASIGNADO`, `COMPLETADO` y `NO_REALIZADO`; mientras no salió
+   * nadie es `null`. Dice hasta cuándo se puede cancelar: hasta que la unidad llega a la puerta.
+   */
+  estadoUnidad: EstadoUnidad | null
   modoHorario: ModoHorario
   horaCita: string | null
   horaSalidaEstimada: string
@@ -46,6 +61,8 @@ export type Traslado = {
   contactoNombre: string | null
   contactoTelefono: string | null
   destino: Ubicacion
+  /** El centro del catálogo, si el destino es uno. Su punto es `destino`. */
+  centroSaludDestinoId: number | null
   centroSaludDestino: string | null
   destinoDetalle: string | null
   fechaHoraCreacion: string
