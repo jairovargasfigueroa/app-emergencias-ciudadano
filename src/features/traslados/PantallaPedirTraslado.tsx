@@ -117,7 +117,7 @@ export function PantallaPedirTraslado() {
       },
       {
         onSuccess: () => {
-          toast.show('Traslado pedido', { message: 'Te avisamos cuando tengamos la unidad.' })
+          toast.show('Traslado pedido', { message: 'Revisa aquí el estado.' })
           router.back()
         },
         onError: (error) => toast.show('No se pudo pedir', { message: mensajeDeError(error) }),
@@ -154,7 +154,7 @@ export function PantallaPedirTraslado() {
               Pedir traslado
             </H1>
             <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
-              Buscamos una unidad cuando llegue la hora de salir. Te avisamos apenas la tengamos.
+              Buscamos una unidad cuando llegue la hora de salir. El estado lo ves en Traslados.
             </Paragraph>
           </YStack>
 

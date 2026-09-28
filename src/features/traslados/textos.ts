@@ -24,9 +24,10 @@ export const TONO_ESTADO: Record<EstadoTraslado, TonoInsignia> = {
   CANCELADO: 'gris',
 }
 
+/** Todavía no hay notificaciones: nada de "te avisamos". Lo cierto es que el estado se ve acá. */
 export const EXPLICACION_ESTADO: Record<EstadoTraslado, string> = {
-  PROGRAMADO: 'Ese día te asignamos una unidad y te avisamos a qué hora pasa.',
-  BUSCANDO_UNIDAD: 'Estamos buscando una ambulancia. Te avisamos apenas la tengamos.',
+  PROGRAMADO: 'Ese día te asignamos una unidad. Revisa aquí el estado.',
+  BUSCANDO_UNIDAD: 'Estamos buscando una ambulancia. Revisa aquí el estado.',
   ASIGNADO: 'Ya hay una unidad asignada a este traslado.',
   COMPLETADO: 'El traslado se hizo.',
   NO_REALIZADO: 'La unidad fue, pero el traslado no se llegó a hacer.',
