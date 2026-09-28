@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, H1, Input, Paragraph, Sheet, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
@@ -55,18 +55,22 @@ export function PantallaPedirTraslado() {
   const [contactoNombre, setContactoNombre] = useState('')
   const [contactoTelefono, setContactoTelefono] = useState('')
 
-  // El mapa abre donde está el teléfono, que es de donde se pide la mayoría de las veces. Si no hay señal, abre
-  // sobre la ciudad y la persona lo mueve.
+  // El origen pasa a ser de la persona cuando mueve el mapa: desde ahí el GPS ya no lo pisa.
+  const origenDeLaPersona = useRef(false)
+
+  // El mapa abre donde está el teléfono, que es de donde se pide la mayoría de las veces. La última posición
+  // conocida llega rápido pero puede ser vieja, así que el GPS la reemplaza si llega después y la persona todavía no
+  // movió el mapa. Sin ninguna de las dos, el origen queda sin marcar: abrir sobre la ciudad no es elegirla.
   useEffect(() => {
     let vigente = true
     void ultimaUbicacionReciente().then((punto) => {
-      if (vigente && punto) {
+      if (vigente && punto && !origenDeLaPersona.current) {
         setOrigen((actual) => actual ?? punto)
       }
     })
     void obtenerUbicacionGps().then((punto) => {
-      if (vigente && punto) {
-        setOrigen((actual) => actual ?? punto)
+      if (vigente && punto && !origenDeLaPersona.current) {
+        setOrigen(punto)
       }
     })
     return () => {
@@ -167,6 +171,7 @@ export function PantallaPedirTraslado() {
             onCambiarActivo={setActivo}
             onMover={(punto) => {
               if (activo === 'origen') {
+                origenDeLaPersona.current = true
                 setOrigen(punto)
               } else {
                 // Mover el pin manda sobre el centro elegido: la persona está diciendo otra cosa.
