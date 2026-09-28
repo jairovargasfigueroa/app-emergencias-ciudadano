@@ -1,6 +1,11 @@
 import { isRunningInExpoGo } from 'expo'
-import type { DevicePushToken } from 'expo-notifications'
+import { router } from 'expo-router'
+import type { DevicePushToken, NotificationResponse } from 'expo-notifications'
 import { Platform } from 'react-native'
+
+import { abrirSeguimiento, volverAlInicio } from '@/features/seguimiento/navegacion'
+import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
+import { queryClient } from '@/shared/query/queryClient'
 
 import { permisoYaPreguntado, recordarPermisoPreguntado } from './almacen'
 import { notificacionesApi } from './api'
@@ -98,5 +103,70 @@ export async function actualizarTokenDelDispositivo(token: DevicePushToken) {
     await notificacionesApi.registrarDispositivo({ tokenPush: String(token.data) })
   } catch {
     // Se vuelve a registrar la próxima vez que se abra la app.
+  }
+}
+
+/** Los ids llegan en `data` como texto. */
+function idDe(valor: unknown): string | null {
+  return typeof valor === 'string' || typeof valor === 'number' ? String(valor) : null
+}
+
+/**
+ * Al inicio desde donde esté la app. El seguimiento queda como única pantalla y lo apilado sobre las pestañas se
+ * cierra: en los dos casos `volverAlInicio` llega. Parada en otra pestaña no hay nada que cerrar, así que se cambia de
+ * pestaña.
+ */
+function irAlInicio(rutaActual: string) {
+  if (rutaActual === '/') {
+    return
+  }
+  if (rutaActual.startsWith('/seguimiento/') || router.canDismiss()) {
+    volverAlInicio()
+  } else {
+    router.navigate('/')
+  }
+}
+
+/**
+ * Aviso de una alerta: le llega a cada persona que avisó del incidente, con su propia alerta, y `tipo` dice qué pasó
+ * (UNIDAD_EN_CAMINO, UNIDAD_LLEGO, BUSCANDO_OTRA_UNIDAD o CERRADO_POR_LA_CENTRAL). Abre el seguimiento si es el caso
+ * que la app está siguiendo; si el caso ya terminó o la app no lo reconoce, va al inicio.
+ */
+function abrirAvisoDeAlerta(incidenteId: string, alertaId: string, rutaActual: string) {
+  // Ese seguimiento ya está a la vista: sigue en vivo o, si el caso terminó, muestra el cierre. Abrirlo otra vez
+  // perdería lo que la persona estaba contestando.
+  if (rutaActual === `/seguimiento/${incidenteId}`) {
+    return
+  }
+  const enCurso = queryClient.getQueryData(seguimientoEnCursoQuery().queryKey)
+  if (enCurso == null || String(enCurso.alertaId) !== alertaId) {
+    irAlInicio(rutaActual)
+    return
+  }
+  // Parada en el inicio no se navega: el inicio abre solo el caso guardado, y abrirlo también desde acá sería una
+  // segunda navegación. Es lo que pasa cuando el toque abre la app.
+  if (rutaActual !== '/') {
+    abrirSeguimiento(enCurso)
+  }
+}
+
+/** El aviso que abrió la app se vuelve a leer si el hook se monta otra vez: cada toque se atiende una sola vez. */
+const respuestasAtendidas = new Set<string>()
+
+/**
+ * Al tocar un aviso se abre lo que avisa. `rutaActual` es la pantalla a la vista: la que ya se ve no se vuelve a
+ * abrir.
+ */
+export function abrirAviso(respuesta: NotificationResponse, rutaActual: string) {
+  const identificador = respuesta.notification.request.identifier
+  if (respuestasAtendidas.has(identificador)) {
+    return
+  }
+  respuestasAtendidas.add(identificador)
+  const datos = respuesta.notification.request.content.data
+  const incidenteId = idDe(datos?.incidenteId)
+  const alertaId = idDe(datos?.alertaId)
+  if (incidenteId !== null && alertaId !== null) {
+    abrirAvisoDeAlerta(incidenteId, alertaId, rutaActual)
   }
 }

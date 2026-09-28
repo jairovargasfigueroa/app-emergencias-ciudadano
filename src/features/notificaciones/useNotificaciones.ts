@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { usePathname } from 'expo-router'
+import { useEffect, useRef, useState } from 'react'
 
 import {
+  abrirAviso,
   activarAvisos,
   actualizarTokenDelDispositivo,
   cargarNotificaciones,
@@ -11,11 +13,18 @@ import {
 
 /**
  * Con el permiso dado, registra el teléfono en cada arranque con sesión, sin preguntar nada, y sigue los cambios de
- * token. Si todavía no se le preguntó, `preguntar` abre la hoja que explica para qué son los avisos. Donde no hay push
- * (Expo Go para Android) no hace nada.
+ * token. Al tocar un aviso abre lo que avisa. Si todavía no se le preguntó, `preguntar` abre la hoja que explica para
+ * qué son los avisos. Donde no hay push (Expo Go para Android) no hace nada.
  */
 export function useNotificaciones(ciudadanoId: number) {
+  const ruta = usePathname()
+  // La pantalla a la vista cuando se toca un aviso: la que ya se ve no se vuelve a abrir.
+  const rutaActual = useRef(ruta)
   const [preguntar, setPreguntar] = useState(false)
+
+  useEffect(() => {
+    rutaActual.current = ruta
+  }, [ruta])
 
   useEffect(() => {
     let activo = true
@@ -25,7 +34,18 @@ export function useNotificaciones(ciudadanoId: number) {
       if (!Notifications || !activo) {
         return
       }
+      // La app se abrió con el toque de un aviso.
+      const ultimaRespuesta = Notifications.getLastNotificationResponse()
+      if (ultimaRespuesta && ultimaRespuesta.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+        abrirAviso(ultimaRespuesta, rutaActual.current)
+      }
+
       suscripciones.push(
+        Notifications.addNotificationResponseReceivedListener((respuesta) => {
+          if (respuesta.actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER) {
+            abrirAviso(respuesta, rutaActual.current)
+          }
+        }),
         Notifications.addPushTokenListener((token) => {
           void actualizarTokenDelDispositivo(token)
         }),
