@@ -131,6 +131,11 @@ export function sePuedeCancelar(traslado: Traslado) {
   return trasladoVigente(traslado.estado) && !unidadYaLlego(traslado)
 }
 
+/** Los que terminaron sin viaje: se vuelven a pedir con los mismos datos, eligiendo de nuevo la fecha. */
+export function sePuedePedirOtraVez(estado: EstadoTraslado) {
+  return estado === 'NO_REALIZADO' || estado === 'NO_CUBIERTO' || estado === 'CANCELADO'
+}
+
 export const trasladosApi = {
   pedir: (datos: PedirTraslado) => api.post<Traslado>('/traslados', datos),
   mios: (signal?: AbortSignal) => api.get<Traslado[]>('/traslados/mios', { signal }),

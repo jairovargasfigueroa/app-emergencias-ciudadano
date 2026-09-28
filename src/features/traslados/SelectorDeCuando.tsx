@@ -55,8 +55,11 @@ function etiquetaDeDia(fecha: Date) {
 
 type Props = {
   abierto: boolean
-  /** Día elegido, o `null` si el traslado es para lo antes posible. */
-  dia: Date | null
+  /**
+   * Día elegido, o `null` si el traslado es para lo antes posible. `undefined` mientras no se eligió nada, como al
+   * pedir otra vez: entonces no aparece nada marcado.
+   */
+  dia: Date | null | undefined
   hora: string
   /** Por qué hay que volver a elegir, cuando el servidor rechazó la hora. Queda a la vista hasta que se cambie. */
   aviso: string | null
@@ -117,7 +120,7 @@ export function SelectorDeCuando({ abierto, dia, hora, aviso, onCambiar, onCerra
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <XStack gap={8} pr={20}>
             {dias.map((fecha) => {
-              const elegido = dia !== null && dia.getTime() === fecha.getTime()
+              const elegido = dia != null && dia.getTime() === fecha.getTime()
               return (
                 <YStack
                   key={fecha.toISOString()}
@@ -151,7 +154,7 @@ export function SelectorDeCuando({ abierto, dia, hora, aviso, onCambiar, onCerra
           <ScrollView style={{ maxHeight: 180 }}>
             <XStack gap={8} flexWrap="wrap">
               {horas.map((opcion) => {
-                const elegida = opcion === hora && dia !== null
+                const elegida = opcion === hora && dia != null
                 return (
                   <YStack
                     key={opcion}

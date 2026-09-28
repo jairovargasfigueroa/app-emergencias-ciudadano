@@ -1,20 +1,34 @@
 import Feather from '@expo/vector-icons/Feather'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, H1, Input, Paragraph, Sheet, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
+import {
+  Button,
+  H1,
+  Input,
+  Paragraph,
+  Sheet,
+  Spinner,
+  Text,
+  XStack,
+  YStack,
+  useTheme,
+  useToastController,
+} from 'tamagui'
 
 import { obtenerUbicacionGps, ultimaUbicacionReciente, type Coordenadas } from '@/features/alerta/ubicacion'
+import type { Persona } from '@/features/personas/api'
 import { personasQuery } from '@/features/personas/queries'
+import type { Ciudadano } from '@/features/registro/api'
 import { ciudadanoQuery } from '@/features/registro/queries'
 import { ErrorApi } from '@/shared/api/cliente'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 import { MensajeDeCampo } from '@/shared/ui/MensajeDeCampo'
 
-import type { CentroSalud, Movilidad } from './api'
-import { centrosSaludQuery, pedirTrasladoMutation } from './queries'
+import type { CentroSalud, Movilidad, Traslado } from './api'
+import { centrosSaludQuery, misTrasladosQuery, pedirTrasladoMutation } from './queries'
 import { MapaDelPedido, type PuntoActivo } from './MapaDelPedido'
 import { SelectorDeCuando } from './SelectorDeCuando'
 import { DETALLE_MOVILIDAD, TEXTO_MOVILIDAD, ventanaDeRecogida } from './textos'
@@ -24,13 +38,55 @@ const MOVILIDADES: Movilidad[] = ['CAMINA_CON_AYUDA', 'SILLA_DE_RUEDAS', 'CAMILL
 
 type Hoja = 'quien' | 'como' | 'destino' | 'cuando' | null
 
-type ErroresDelPedido = Partial<Record<CampoEscrito | 'origen' | 'destino', string>>
+type ErroresDelPedido = Partial<Record<CampoEscrito | 'origen' | 'destino' | 'pasajero' | 'cuando', string>>
+
+/**
+ * Pedir y pedir otra vez son el mismo formulario. Para pedir otra vez, la ruta dice de qué traslado se parte
+ * (`desde`) y el formulario arranca con sus datos, así que no se duplica nada.
+ */
+export function PantallaPedirTraslado() {
+  const { desde } = useLocalSearchParams<{ desde?: string }>()
+  const conBase = desde !== undefined
+  const traslados = useQuery({ ...misTrasladosQuery(), enabled: conBase })
+  // Quién viaja se reconoce por el nombre entre las personas guardadas: tienen que estar antes de armar el pedido.
+  const personas = useQuery({ ...personasQuery(), enabled: conBase })
+
+  if (!conBase) {
+    return <FormularioDelPedido />
+  }
+  if (traslados.isPending || personas.isLoading) {
+    return (
+      <YStack flex={1} items="center" justify="center">
+        <Spinner size="large" color="$primario" />
+      </YStack>
+    )
+  }
+  const base = traslados.data?.find((traslado) => String(traslado.id) === desde)
+  if (!base) {
+    return (
+      <YStack flex={1} items="center" justify="center" px={24} gap={8}>
+        <Text fontSize={16} fontWeight="600" color="$texto">
+          No encontramos ese traslado
+        </Text>
+        <Button chromeless onPress={() => router.back()}>
+          <Button.Text color="$textoSecundario" fontSize={15}>
+            Volver
+          </Button.Text>
+        </Button>
+      </YStack>
+    )
+  }
+  return <FormularioDelPedido base={base} />
+}
 
 /**
  * Una sola pantalla con filas: cada una abre lo que necesita y vuelve. Esta misma pantalla es la revisión, así
  * que no hay un paso de confirmar aparte ni hay que ir para atrás por todos los pasos para corregir algo.
+ *
+ * Con `base` arranca con los datos de ese traslado: quién viaja, cómo, de dónde, a dónde y quién recibe. La fecha
+ * no, porque la del viaje anterior ya no sirve: queda sin elegir y se pregunta de nuevo.
  */
-export function PantallaPedirTraslado() {
+function FormularioDelPedido({ base }: { base?: Traslado }) {
   const margenes = useSafeAreaInsets()
   const tema = useTheme()
   const queryClient = useQueryClient()
@@ -41,42 +97,50 @@ export function PantallaPedirTraslado() {
   const pedir = useMutation(pedirTrasladoMutation(queryClient))
 
   const [hoja, setHoja] = useState<Hoja>(null)
-  const [pasajeroId, setPasajeroId] = useState<number | null>(null)
-  const [movilidad, setMovilidad] = useState<Movilidad>('CAMINA_CON_AYUDA')
-  const [oxigeno, setOxigeno] = useState(false)
-  const [equipo, setEquipo] = useState(false)
-  const [aislamiento, setAislamiento] = useState(false)
-  const [origen, setOrigen] = useState<Coordenadas | null>(null)
+  // `null` es quien pide; `undefined`, que todavía no se sabe quién viaja y hay que preguntarlo.
+  const [pasajeroId, setPasajeroId] = useState<number | null | undefined>(() =>
+    base ? pasajeroDe(base, ciudadano, personas.data ?? []) : null,
+  )
+  const [movilidad, setMovilidad] = useState<Movilidad>(base?.movilidad ?? 'CAMINA_CON_AYUDA')
+  const [oxigeno, setOxigeno] = useState(base?.oxigeno ?? false)
+  const [equipo, setEquipo] = useState(base?.equipo ?? false)
+  const [aislamiento, setAislamiento] = useState(base?.aislamiento ?? false)
+  const [origen, setOrigen] = useState<Coordenadas | null>(base?.origen ?? null)
   const [activo, setActivo] = useState<PuntoActivo>('origen')
-  const [referencia, setReferencia] = useState('')
-  const [centro, setCentro] = useState<CentroSalud | null>(null)
-  const [destino, setDestino] = useState<Coordenadas | null>(null)
-  const [area, setArea] = useState('')
-  const [dia, setDia] = useState<Date | null>(null)
+  const [referencia, setReferencia] = useState(base?.origenReferencia ?? '')
+  const [centro, setCentro] = useState<CentroSalud | null>(() => (base ? centroDe(base) : null))
+  const [destino, setDestino] = useState<Coordenadas | null>(base?.destino ?? null)
+  const [area, setArea] = useState(base?.destinoDetalle ?? '')
+  // `null` es lo antes posible; `undefined`, que todavía no se eligió.
+  const [dia, setDia] = useState<Date | null | undefined>(base ? undefined : null)
   const [hora, setHora] = useState('10:00')
   const [avisoCuando, setAvisoCuando] = useState<string | null>(null)
-  const [peso, setPeso] = useState('')
-  const [acompanantes, setAcompanantes] = useState('0')
-  const [observaciones, setObservaciones] = useState('')
-  const [contactoNombre, setContactoNombre] = useState('')
-  const [contactoTelefono, setContactoTelefono] = useState('')
+  const [peso, setPeso] = useState(base?.pesoAproximado != null ? String(base.pesoAproximado) : '')
+  const [acompanantes, setAcompanantes] = useState(base ? String(base.acompanantes) : '0')
+  const [observaciones, setObservaciones] = useState(base?.observaciones ?? '')
+  const [contactoNombre, setContactoNombre] = useState(base?.contactoNombre ?? '')
+  const [contactoTelefono, setContactoTelefono] = useState(base?.contactoTelefono ?? '')
   const [intentado, setIntentado] = useState(false)
 
-  // El origen pasa a ser de la persona cuando mueve el mapa: desde ahí el GPS ya no lo pisa.
-  const origenDeLaPersona = useRef(false)
+  // El origen ya es una elección cuando la persona mueve el mapa o cuando viene del traslado de base: desde ahí el
+  // GPS no lo pisa.
+  const origenElegido = useRef(base !== undefined)
 
   // El mapa abre donde está el teléfono, que es de donde se pide la mayoría de las veces. La última posición
   // conocida llega rápido pero puede ser vieja, así que el GPS la reemplaza si llega después y la persona todavía no
   // movió el mapa. Sin ninguna de las dos, el origen queda sin marcar: abrir sobre la ciudad no es elegirla.
   useEffect(() => {
+    if (origenElegido.current) {
+      return
+    }
     let vigente = true
     void ultimaUbicacionReciente().then((punto) => {
-      if (vigente && punto && !origenDeLaPersona.current) {
+      if (vigente && punto && !origenElegido.current) {
         setOrigen((actual) => actual ?? punto)
       }
     })
     void obtenerUbicacionGps().then((punto) => {
-      if (vigente && punto && !origenDeLaPersona.current) {
+      if (vigente && punto && !origenElegido.current) {
         setOrigen(punto)
       }
     })
@@ -86,12 +150,15 @@ export function PantallaPedirTraslado() {
   }, [])
 
   const pasajero =
-    pasajeroId === null
-      ? (ciudadano?.nombreCompleto ?? 'Yo')
-      : (personas.data?.find((persona) => persona.id === pasajeroId)?.nombreCompleto ?? 'Elegir')
+    pasajeroId === undefined
+      ? 'Elegir'
+      : pasajeroId === null
+        ? (ciudadano?.nombreCompleto ?? 'Yo')
+        : (personas.data?.find((persona) => persona.id === pasajeroId)?.nombreCompleto ?? 'Elegir')
 
   const textoDestino = centro ? centro.nombre : destino ? 'Punto marcado en el mapa' : 'Elegir'
-  const textoCuando = dia ? `${etiquetaDeDia(dia)} · tiene que estar ${hora}` : 'Lo antes posible'
+  const textoCuando =
+    dia === undefined ? 'Elegir' : dia ? `${etiquetaDeDia(dia)} · tiene que estar ${hora}` : 'Lo antes posible'
 
   const escrito = esquemaDelPedido.safeParse({
     origenReferencia: referencia,
@@ -111,11 +178,17 @@ export function PantallaPedirTraslado() {
   if (!centro && !destino) {
     faltas.destino = 'Falta a dónde lo llevamos: márcalo en "A dónde" o elige un centro de salud.'
   }
+  if (pasajeroId === undefined) {
+    faltas.pasajero = 'Elige quién viaja.'
+  }
+  if (dia === undefined) {
+    faltas.cuando = 'Elige para cuándo es.'
+  }
   const errores = intentado ? faltas : {}
 
   function enviar() {
     setIntentado(true)
-    if (!escrito.success || !origen || (!centro && !destino)) {
+    if (!escrito.success || !origen || (!centro && !destino) || pasajeroId === undefined || dia === undefined) {
       toast.show('Revisa el pedido', { message: Object.values(faltas).find(Boolean) })
       return
     }
@@ -146,7 +219,12 @@ export function PantallaPedirTraslado() {
         onSuccess: (traslado) => {
           const ventana = ventanaDeRecogida(traslado, { conDia: true })
           toast.show('Traslado pedido', { message: ventana ? `${ventana}.` : 'Revisa aquí el estado.' })
-          router.back()
+          // Al pedir otra vez, debajo quedó el detalle del traslado viejo: se vuelve a la lista, donde está el nuevo.
+          if (base) {
+            router.dismissAll()
+          } else {
+            router.back()
+          }
         },
         onError: (error) => {
           // A esa hora ya no se llega: se vuelve a elegir con el porqué a la vista, no en un aviso que se va solo.
@@ -187,10 +265,12 @@ export function PantallaPedirTraslado() {
 
           <YStack gap={4}>
             <H1 color="$texto" fontSize={24} lineHeight={30} fontWeight="600">
-              Pedir traslado
+              {base ? 'Pedir otra vez' : 'Pedir traslado'}
             </H1>
             <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
-              Buscamos una unidad cuando llegue la hora de salir. El estado lo ves en Traslados.
+              {base
+                ? 'Con los datos del traslado anterior. Revísalos y elige para cuándo es.'
+                : 'Buscamos una unidad cuando llegue la hora de salir. El estado lo ves en Traslados.'}
             </Paragraph>
           </YStack>
 
@@ -202,7 +282,7 @@ export function PantallaPedirTraslado() {
               onCambiarActivo={setActivo}
               onMover={(punto) => {
                 if (activo === 'origen') {
-                  origenDeLaPersona.current = true
+                  origenElegido.current = true
                   setOrigen(punto)
                 } else {
                   // Mover el pin manda sobre el centro elegido: la persona está diciendo otra cosa.
@@ -226,8 +306,9 @@ export function PantallaPedirTraslado() {
               <Fila etiqueta="A dónde" valor={textoDestino} onPress={() => setHoja('destino')} />
               <Fila etiqueta="Cuándo" valor={textoCuando} onPress={() => setHoja('cuando')} ultima />
             </YStack>
-            {/* Si se cierra la hoja sin cambiar la hora, el porqué sigue a la vista junto a la fila. */}
-            <MensajeDeCampo texto={avisoCuando} />
+            {/* Lo que falta de estas filas va debajo de ellas. Si se cierra la hoja sin cambiar la hora, el porqué
+                sigue a la vista. */}
+            <MensajeDeCampo texto={juntar(errores.pasajero, errores.cuando, avisoCuando)} />
           </YStack>
 
           <YStack gap={6}>
@@ -424,9 +505,36 @@ export function PantallaPedirTraslado() {
 }
 
 /** Dos errores que van debajo del mismo bloque, como el nombre y el teléfono del contacto. */
-function juntar(...errores: (string | undefined)[]) {
+function juntar(...errores: (string | null | undefined)[]) {
   const presentes = errores.filter((error): error is string => Boolean(error))
   return presentes.length > 0 ? presentes.join(' ') : null
+}
+
+/**
+ * Quién viajó en `base`, como lo entiende el formulario: `null` si fue quien pide y el id si fue una de sus personas.
+ * El servidor manda el nombre y no el id, así que se lo busca por nombre. Si no se lo reconoce —la persona se quitó
+ * del perfil, o hay dos con el mismo nombre— queda `undefined` y se pregunta en vez de adivinar.
+ */
+function pasajeroDe(base: Traslado, ciudadano: Ciudadano | null | undefined, personas: Persona[]) {
+  const candidatos: (number | null)[] = [
+    ...(ciudadano?.nombreCompleto === base.pasajero ? [null] : []),
+    ...personas.filter((persona) => persona.nombreCompleto === base.pasajero).map((persona) => persona.id),
+  ]
+  return candidatos.length === 1 ? candidatos[0] : undefined
+}
+
+/** El centro de salud de `base`, armado con lo que ya trae: no hace falta esperar la lista de centros. */
+function centroDe(base: Traslado): CentroSalud | null {
+  if (base.centroSaludDestinoId === null) {
+    return null
+  }
+  return {
+    id: base.centroSaludDestinoId,
+    nombre: base.centroSaludDestino ?? 'Centro de salud',
+    direccion: null,
+    latitud: base.destino.latitud,
+    longitud: base.destino.longitud,
+  }
 }
 
 function etiquetaDeDia(dia: Date) {

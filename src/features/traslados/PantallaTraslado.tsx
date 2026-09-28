@@ -8,9 +8,10 @@ import { Button, H1, Paragraph, Text, XStack, YStack, useTheme, useToastControll
 
 import { mensajeDeError } from '@/shared/api/cliente'
 import { diaNatural, horaCorta } from '@/shared/formato/tiempo'
+import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 import { Insignia } from '@/shared/ui/Insignia'
 
-import { sePuedeCancelar, trasladoVigente, type Traslado } from './api'
+import { sePuedeCancelar, sePuedePedirOtraVez, trasladoVigente, type Traslado } from './api'
 import { cancelarTrasladoMutation, misTrasladosQuery } from './queries'
 import { DialogoCancelarTraslado } from './DialogoCancelarTraslado'
 import { HojaCorregirDetalles } from './HojaCorregirDetalles'
@@ -210,6 +211,24 @@ export function PantallaTraslado() {
                   </Paragraph>
                 </YStack>
               )}
+            </YStack>
+          ) : null}
+
+          {/* Si el viaje no se hizo, la familia lo sigue necesitando: se pide de nuevo sin volver a llenar nada. */}
+          {sePuedePedirOtraVez(traslado.estado) ? (
+            <YStack gap={8}>
+              <BotonPrincipal
+                onPress={() =>
+                  router.push({ pathname: '/pedir-traslado', params: { desde: String(traslado.id) } })
+                }
+              >
+                <Button.Text color="$primarioTexto" fontSize={17} fontWeight="600">
+                  Pedir otra vez
+                </Button.Text>
+              </BotonPrincipal>
+              <Paragraph color="$textoSecundario" fontSize={12} lineHeight={17}>
+                Con los mismos datos de este traslado. Solo eliges de nuevo para cuándo.
+              </Paragraph>
             </YStack>
           ) : null}
         </YStack>
