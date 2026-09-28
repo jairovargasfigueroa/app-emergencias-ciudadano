@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, Paragraph, Text, XStack, YStack, useToastController } from 'tamagui'
+import { Button, XStack, YStack, useToastController } from 'tamagui'
 
 import type { MotivoRetiro } from '@/features/alerta/api'
 import { retirarPedidoMutation } from '@/features/alerta/queries'
@@ -16,10 +16,11 @@ import { useAhora } from '@/shared/reloj/useAhora'
 import { DialogoRetirarPedido } from './DialogoRetirarPedido'
 import { HojaBuscando } from './HojaBuscando'
 import { HojaConcluida } from './HojaConcluida'
+import { HojaPedidoRetirado } from './HojaPedidoRetirado'
 import { HojaUnidades } from './HojaUnidades'
 import { MapaSeguimiento } from './MapaSeguimiento'
 import { PreguntasIncidente } from './PreguntasIncidente'
-import { olvidarSeguimiento, seguimientoEnCursoQuery } from './queries'
+import { olvidarSeguimiento } from './queries'
 import { useSeguimiento } from './useSeguimiento'
 import { vistaDeSeguimiento, type VistaSeguimiento } from './vista'
 
@@ -44,6 +45,7 @@ const ALTOS_DE_HOJA: Record<VistaSeguimiento['tipo'], { minH?: Porcentaje; maxH:
   buscando: { minH: '52%', maxH: '74%' },
   acudiendo: { maxH: '56%' },
   concluido: { minH: '46%', maxH: '82%' },
+  retirado: { minH: '46%', maxH: '82%' },
 }
 
 /**
@@ -56,12 +58,13 @@ export function PantallaSeguimiento() {
   const parametros = useLocalSearchParams<ParametrosSeguimiento>()
   const ahora = useAhora()
   const toast = useToastController()
-  const { cargando, error, seguimiento } = useSeguimiento(Number(parametros.incidenteId))
-  const vista = vistaDeSeguimiento(seguimiento)
+  const retiro = useMutation(retirarPedidoMutation(queryClient))
+  // Con el pedido retirado el caso terminó para este teléfono, aunque el incidente siga abierto: se deja de escuchar.
+  const retirado = retiro.isSuccess
+  const { cargando, error, seguimiento } = useSeguimiento(Number(parametros.incidenteId), { escuchar: !retirado })
+  const vista = vistaDeSeguimiento(seguimiento, { retirado })
   const [altoHoja, setAltoHoja] = useState(0)
   const [retirando, setRetirando] = useState(false)
-  const enCurso = useQuery(seguimientoEnCursoQuery()).data
-  const retiro = useMutation(retirarPedidoMutation(queryClient))
 
   const concluido = vista.tipo === 'concluido'
   const unidades = vista.tipo === 'acudiendo' && seguimiento ? seguimiento.unidades : []
@@ -74,10 +77,8 @@ export function PantallaSeguimiento() {
 
   // El pedido se retira mientras ninguna unidad haya llegado al lugar: desde ahí lo resuelve quien está allí.
   const hayUnidadEnCamino = vista.tipo === 'acudiendo' && vista.etapa === 'EN_CAMINO'
-  const pedidoRetirado = enCurso?.pedidoRetirado === true
   const puedeRetirar =
-    !cargando && !pedidoRetirado && Number.isFinite(alertaId) && alertaId > 0 &&
-    (vista.tipo === 'buscando' || hayUnidadEnCamino)
+    !cargando && Number.isFinite(alertaId) && alertaId > 0 && (vista.tipo === 'buscando' || hayUnidadEnCamino)
 
   function retirarPedido(motivo: MotivoRetiro, emisorEsPaciente: boolean) {
     retiro.mutate(
@@ -104,7 +105,7 @@ export function PantallaSeguimiento() {
       <MapaSeguimiento
         ubicacionCiudadano={coordenadasDeParametros(parametros.latitud, parametros.longitud)}
         unidades={unidades}
-        apagado={concluido}
+        apagado={concluido || retirado}
         margenInferior={altoHoja}
         ahora={ahora}
       />
@@ -141,7 +142,9 @@ export function PantallaSeguimiento() {
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets
         >
-          {vista.tipo === 'concluido' ? (
+          {vista.tipo === 'retirado' ? (
+            <HojaPedidoRetirado />
+          ) : vista.tipo === 'concluido' ? (
             <HojaConcluida estado={vista.estado} />
           ) : (
             <>
@@ -160,19 +163,6 @@ export function PantallaSeguimiento() {
               {puedePreguntar ? <PreguntasIncidente alertaId={alertaId} /> : null}
 
               {/* Retirar el pedido no corta el viaje de nadie: si hay unidad en camino, ella decide. */}
-              {pedidoRetirado ? (
-                <YStack gap={4} px={14} py={12} rounded={14} borderWidth={1} borderColor="$borde">
-                  <Text color="$texto" fontSize={15} fontWeight="600">
-                    Retiraste tu pedido
-                  </Text>
-                  <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
-                    {hayUnidadEnCamino
-                      ? 'Le avisamos a la unidad que ya no la necesitás. Ella decide si sigue o se vuelve.'
-                      : 'Ya podés volver a pedir ayuda cuando quieras.'}
-                  </Paragraph>
-                </YStack>
-              ) : null}
-
               {puedeRetirar ? (
                 <Button height={48} rounded={14} chromeless onPress={() => setRetirando(true)}>
                   <Button.Text color="$textoSecundario" fontSize={15} fontWeight="500">
