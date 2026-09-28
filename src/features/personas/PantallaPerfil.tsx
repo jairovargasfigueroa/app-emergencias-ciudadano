@@ -79,7 +79,7 @@ export function PantallaPerfil() {
               </Paragraph>
             ) : null}
           </YStack>
-  
+
           <YStack gap={12}>
             <YStack gap={2}>
               <Text fontSize={16} fontWeight="600" color="$texto">
@@ -89,7 +89,7 @@ export function PantallaPerfil() {
                 Familiares a los que trasladas y contactos de confianza. Quedan guardados para los próximos pedidos.
               </Text>
             </YStack>
-  
+
             {(personas.data ?? []).map((persona) => (
               <XStack
                 key={persona.id}
@@ -125,14 +125,14 @@ export function PantallaPerfil() {
                 </Button>
               </XStack>
             ))}
-  
+
             {personas.data?.length === 0 ? (
               <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
                 Todavía no agregaste a nadie.
               </Paragraph>
             ) : null}
           </YStack>
-  
+
           <Form gap={10} onSubmit={agregar}>
             <Text fontSize={13} fontWeight="600" color="$texto">
               Agregar una persona
