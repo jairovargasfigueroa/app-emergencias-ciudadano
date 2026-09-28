@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useState, type ReactNode } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, H1, Paragraph, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
+import { Button, H1, Paragraph, Spinner, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
 
 import { mensajeDeError } from '@/shared/api/cliente'
 import { diaNatural, horaCorta } from '@/shared/formato/tiempo'
@@ -39,6 +39,15 @@ export function PantallaTraslado() {
   const [cancelando, setCancelando] = useState(false)
 
   const traslado = traslados.data?.find((item) => String(item.id) === trasladoId)
+
+  // Abierto desde un aviso con la app recién abierta, la lista todavía no llegó: no es que el traslado no exista.
+  if (!traslado && traslados.isPending) {
+    return (
+      <YStack flex={1} items="center" justify="center">
+        <Spinner size="large" color="$primario" />
+      </YStack>
+    )
+  }
 
   if (!traslado) {
     return (
