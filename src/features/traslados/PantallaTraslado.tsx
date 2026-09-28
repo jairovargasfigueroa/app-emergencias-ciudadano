@@ -11,7 +11,7 @@ import { diaNatural, horaCorta } from '@/shared/formato/tiempo'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 import { Insignia } from '@/shared/ui/Insignia'
 
-import { sePuedeCancelar, sePuedePedirOtraVez, trasladoVigente, type Traslado } from './api'
+import { sePuedeCambiar, sePuedeCancelar, sePuedePedirOtraVez, trasladoVigente, type Traslado } from './api'
 import { cancelarTrasladoMutation, misTrasladosQuery } from './queries'
 import { DialogoCancelarTraslado } from './DialogoCancelarTraslado'
 import { HojaCorregirDetalles } from './HojaCorregirDetalles'
@@ -186,6 +186,29 @@ export function PantallaTraslado() {
 
           {trasladoVigente(traslado.estado) ? (
             <YStack gap={20}>
+              {sePuedeCambiar(traslado.estado) ? (
+                <YStack gap={8}>
+                  <Button
+                    height={52}
+                    rounded={14}
+                    variant="outlined"
+                    onPress={() =>
+                      router.push({
+                        pathname: '/pedir-traslado',
+                        params: { desde: String(traslado.id), modo: 'cambiar' },
+                      })
+                    }
+                  >
+                    <Button.Text color="$texto" fontSize={16} fontWeight="600">
+                      Cambiar el pedido
+                    </Button.Text>
+                  </Button>
+                  <Paragraph color="$textoSecundario" fontSize={12} lineHeight={17}>
+                    Mientras no se asigne una unidad puedes cambiar todo, también el día y la hora.
+                  </Paragraph>
+                </YStack>
+              ) : null}
+
               <YStack gap={8}>
                 <Button height={52} rounded={14} variant="outlined" onPress={() => setCorrigiendo(true)}>
                   <Button.Text color="$texto" fontSize={16} fontWeight="600">

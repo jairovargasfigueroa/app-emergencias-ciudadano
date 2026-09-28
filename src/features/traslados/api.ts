@@ -113,9 +113,12 @@ export function trasladoVigente(estado: EstadoTraslado) {
   return estado === 'PROGRAMADO' || estado === 'BUSCANDO_UNIDAD' || estado === 'ASIGNADO'
 }
 
-/** Ya hay una unidad en camino: desde acá solo se pueden corregir la referencia y el contacto. */
-export function tieneUnidad(estado: EstadoTraslado) {
-  return estado === 'ASIGNADO'
+/**
+ * Mientras no haya una unidad asignada se puede cambiar el pedido entero: el servidor vuelve a calcular el horario
+ * y la unidad. Con una unidad asignada solo se corrigen la referencia, el contacto y las observaciones.
+ */
+export function sePuedeCambiar(estado: EstadoTraslado) {
+  return estado === 'PROGRAMADO' || estado === 'BUSCANDO_UNIDAD'
 }
 
 /** La unidad ya está en la puerta, o más allá: con el paciente a bordo o en el destino. */
@@ -138,6 +141,8 @@ export function sePuedePedirOtraVez(estado: EstadoTraslado) {
 
 export const trasladosApi = {
   pedir: (datos: PedirTraslado) => api.post<Traslado>('/traslados', datos),
+  /** Mismo cuerpo que pedir. Si ya se asignó una unidad responde `TRASLADO_FINALIZADO`. */
+  cambiar: (id: number, datos: PedirTraslado) => api.put<Traslado>(`/traslados/${id}`, datos),
   mios: (signal?: AbortSignal) => api.get<Traslado[]>('/traslados/mios', { signal }),
   cancelar: (id: number) => api.post<Traslado>(`/traslados/${id}/cancelar`),
   actualizarDetalles: (id: number, datos: DetallesTraslado) =>

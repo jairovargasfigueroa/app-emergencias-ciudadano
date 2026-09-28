@@ -24,11 +24,12 @@ import { personasQuery } from '@/features/personas/queries'
 import type { Ciudadano } from '@/features/registro/api'
 import { ciudadanoQuery } from '@/features/registro/queries'
 import { ErrorApi } from '@/shared/api/cliente'
+import { horaCorta } from '@/shared/formato/tiempo'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 import { MensajeDeCampo } from '@/shared/ui/MensajeDeCampo'
 
-import type { CentroSalud, Movilidad, Traslado } from './api'
-import { centrosSaludQuery, misTrasladosQuery, pedirTrasladoMutation } from './queries'
+import type { CentroSalud, Movilidad, PedirTraslado, Traslado } from './api'
+import { cambiarTrasladoMutation, centrosSaludQuery, misTrasladosQuery, pedirTrasladoMutation } from './queries'
 import { MapaDelPedido, type PuntoActivo } from './MapaDelPedido'
 import { SelectorDeCuando } from './SelectorDeCuando'
 import { DETALLE_MOVILIDAD, TEXTO_MOVILIDAD, ventanaDeRecogida } from './textos'
@@ -41,11 +42,11 @@ type Hoja = 'quien' | 'como' | 'destino' | 'cuando' | null
 type ErroresDelPedido = Partial<Record<CampoEscrito | 'origen' | 'destino' | 'pasajero' | 'cuando', string>>
 
 /**
- * Pedir y pedir otra vez son el mismo formulario. Para pedir otra vez, la ruta dice de qué traslado se parte
- * (`desde`) y el formulario arranca con sus datos, así que no se duplica nada.
+ * Pedir, pedir otra vez y cambiar el pedido son el mismo formulario. Para los dos últimos, la ruta dice de qué
+ * traslado se parte (`desde`) y si es para cambiarlo (`modo`), y el formulario arranca con sus datos.
  */
 export function PantallaPedirTraslado() {
-  const { desde } = useLocalSearchParams<{ desde?: string }>()
+  const { desde, modo } = useLocalSearchParams<{ desde?: string; modo?: 'cambiar' }>()
   const conBase = desde !== undefined
   const traslados = useQuery({ ...misTrasladosQuery(), enabled: conBase })
   // Quién viaja se reconoce por el nombre entre las personas guardadas: tienen que estar antes de armar el pedido.
@@ -76,17 +77,18 @@ export function PantallaPedirTraslado() {
       </YStack>
     )
   }
-  return <FormularioDelPedido base={base} />
+  return <FormularioDelPedido base={base} cambiando={modo === 'cambiar'} />
 }
 
 /**
  * Una sola pantalla con filas: cada una abre lo que necesita y vuelve. Esta misma pantalla es la revisión, así
  * que no hay un paso de confirmar aparte ni hay que ir para atrás por todos los pasos para corregir algo.
  *
- * Con `base` arranca con los datos de ese traslado: quién viaja, cómo, de dónde, a dónde y quién recibe. La fecha
- * no, porque la del viaje anterior ya no sirve: queda sin elegir y se pregunta de nuevo.
+ * Con `base` arranca con los datos de ese traslado: quién viaja, cómo, de dónde, a dónde y quién recibe. Para
+ * pedirlo otra vez la fecha no, porque la del viaje anterior ya no sirve: queda sin elegir y se pregunta de nuevo.
+ * Para cambiarlo sí, porque es el mismo viaje y lo más probable es que cambie otra cosa.
  */
-function FormularioDelPedido({ base }: { base?: Traslado }) {
+function FormularioDelPedido({ base, cambiando = false }: { base?: Traslado; cambiando?: boolean }) {
   const margenes = useSafeAreaInsets()
   const tema = useTheme()
   const queryClient = useQueryClient()
@@ -95,6 +97,8 @@ function FormularioDelPedido({ base }: { base?: Traslado }) {
   const personas = useQuery(personasQuery())
   const centros = useQuery(centrosSaludQuery())
   const pedir = useMutation(pedirTrasladoMutation(queryClient))
+  const cambiar = useMutation(cambiarTrasladoMutation(queryClient))
+  const enviando = pedir.isPending || cambiar.isPending
 
   const [hoja, setHoja] = useState<Hoja>(null)
   // `null` es quien pide; `undefined`, que todavía no se sabe quién viaja y hay que preguntarlo.
@@ -112,8 +116,16 @@ function FormularioDelPedido({ base }: { base?: Traslado }) {
   const [destino, setDestino] = useState<Coordenadas | null>(base?.destino ?? null)
   const [area, setArea] = useState(base?.destinoDetalle ?? '')
   // `null` es lo antes posible; `undefined`, que todavía no se eligió.
-  const [dia, setDia] = useState<Date | null | undefined>(base ? undefined : null)
-  const [hora, setHora] = useState('10:00')
+  const [dia, setDia] = useState<Date | null | undefined>(() => {
+    if (!base) {
+      return null
+    }
+    if (!cambiando) {
+      return undefined
+    }
+    return base.horaCita ? diaDe(base.horaCita) : null
+  })
+  const [hora, setHora] = useState(() => (cambiando && base?.horaCita ? horaCorta(base.horaCita) : '10:00'))
   const [avisoCuando, setAvisoCuando] = useState<string | null>(null)
   const [peso, setPeso] = useState(base?.pesoAproximado != null ? String(base.pesoAproximado) : '')
   const [acompanantes, setAcompanantes] = useState(base ? String(base.acompanantes) : '0')
@@ -193,50 +205,62 @@ function FormularioDelPedido({ base }: { base?: Traslado }) {
       return
     }
     const datos = escrito.data
-    pedir.mutate(
-      {
-        pasajeroId,
-        movilidad,
-        oxigeno,
-        equipo,
-        aislamiento,
-        pesoAproximado: datos.pesoAproximado ? Number(datos.pesoAproximado) : null,
-        acompanantes: Number(datos.acompanantes) || 0,
-        observaciones: datos.observaciones || null,
-        origenLatitud: origen.latitud,
-        origenLongitud: origen.longitud,
-        origenReferencia: datos.origenReferencia || null,
-        contactoNombre: datos.contactoNombre || null,
-        contactoTelefono: datos.contactoTelefono || null,
-        centroSaludDestinoId: centro?.id ?? null,
-        destinoLatitud: centro ? null : destino?.latitud,
-        destinoLongitud: centro ? null : destino?.longitud,
-        destinoDetalle: datos.destinoDetalle || null,
-        horaCita: dia ? horaCitaComoIso(dia, hora) : null,
+    const pedido: PedirTraslado = {
+      pasajeroId,
+      movilidad,
+      oxigeno,
+      equipo,
+      aislamiento,
+      pesoAproximado: datos.pesoAproximado ? Number(datos.pesoAproximado) : null,
+      acompanantes: Number(datos.acompanantes) || 0,
+      observaciones: datos.observaciones || null,
+      origenLatitud: origen.latitud,
+      origenLongitud: origen.longitud,
+      origenReferencia: datos.origenReferencia || null,
+      contactoNombre: datos.contactoNombre || null,
+      contactoTelefono: datos.contactoTelefono || null,
+      centroSaludDestinoId: centro?.id ?? null,
+      destinoLatitud: centro ? null : destino?.latitud,
+      destinoLongitud: centro ? null : destino?.longitud,
+      destinoDetalle: datos.destinoDetalle || null,
+      horaCita: dia ? horaCitaComoIso(dia, hora) : null,
+    }
+    const alTerminar = {
+      // La ventana ya viene calculada en la respuesta: se dice al confirmar, que es cuando la familia se organiza.
+      onSuccess: (traslado: Traslado) => {
+        const ventana = ventanaDeRecogida(traslado, { conDia: true })
+        toast.show(cambiando ? 'Pedido cambiado' : 'Traslado pedido', {
+          message: ventana ? `${ventana}.` : 'Revisa aquí el estado.',
+        })
+        // Al pedir otra vez, debajo quedó el detalle del traslado viejo: se vuelve a la lista, donde está el nuevo.
+        if (base && !cambiando) {
+          router.dismissAll()
+        } else {
+          router.back()
+        }
       },
-      {
-        // La ventana ya viene calculada en la respuesta: se dice al confirmar, que es cuando la familia se organiza.
-        onSuccess: (traslado) => {
-          const ventana = ventanaDeRecogida(traslado, { conDia: true })
-          toast.show('Traslado pedido', { message: ventana ? `${ventana}.` : 'Revisa aquí el estado.' })
-          // Al pedir otra vez, debajo quedó el detalle del traslado viejo: se vuelve a la lista, donde está el nuevo.
-          if (base) {
-            router.dismissAll()
-          } else {
-            router.back()
-          }
-        },
-        onError: (error) => {
-          // A esa hora ya no se llega: se vuelve a elegir con el porqué a la vista, no en un aviso que se va solo.
-          if (error instanceof ErrorApi && error.codigo === 'HORA_INALCANZABLE') {
-            setAvisoCuando(error.message)
-            setHoja('cuando')
-            return
-          }
-          toast.show('No se pudo pedir', { message: mensajeDelRechazo(error) })
-        },
+      onError: (error: Error) => {
+        // A esa hora ya no se llega: se vuelve a elegir con el porqué a la vista, no en un aviso que se va solo.
+        if (error instanceof ErrorApi && error.codigo === 'HORA_INALCANZABLE') {
+          setAvisoCuando(error.message)
+          setHoja('cuando')
+          return
+        }
+        // Mientras se editaba, le asignaron una unidad: desde ahí solo se corrigen los detalles, así que se vuelve al
+        // detalle, que ya muestra la unidad.
+        if (cambiando && error instanceof ErrorApi && error.codigo === 'TRASLADO_FINALIZADO') {
+          toast.show('No se pudo cambiar', { message: error.message })
+          router.back()
+          return
+        }
+        toast.show(cambiando ? 'No se pudo cambiar' : 'No se pudo pedir', { message: mensajeDelRechazo(error) })
       },
-    )
+    }
+    if (cambiando && base) {
+      cambiar.mutate({ id: base.id, datos: pedido }, alTerminar)
+    } else {
+      pedir.mutate(pedido, alTerminar)
+    }
   }
 
   return (
@@ -265,12 +289,14 @@ function FormularioDelPedido({ base }: { base?: Traslado }) {
 
           <YStack gap={4}>
             <H1 color="$texto" fontSize={24} lineHeight={30} fontWeight="600">
-              {base ? 'Pedir otra vez' : 'Pedir traslado'}
+              {cambiando ? 'Cambiar el pedido' : base ? 'Pedir otra vez' : 'Pedir traslado'}
             </H1>
             <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
-              {base
-                ? 'Con los datos del traslado anterior. Revísalos y elige para cuándo es.'
-                : 'Buscamos una unidad cuando llegue la hora de salir. El estado lo ves en Traslados.'}
+              {cambiando
+                ? 'Mientras no se asigne una unidad puedes cambiar todo. Con los cambios volvemos a calcular a qué hora pasamos.'
+                : base
+                  ? 'Con los datos del traslado anterior. Revísalos y elige para cuándo es.'
+                  : 'Buscamos una unidad cuando llegue la hora de salir. El estado lo ves en Traslados.'}
             </Paragraph>
           </YStack>
 
@@ -394,9 +420,9 @@ function FormularioDelPedido({ base }: { base?: Traslado }) {
             </Text>
           </YStack>
 
-          <BotonPrincipal disabled={pedir.isPending} opacity={pedir.isPending ? 0.6 : 1} onPress={enviar}>
+          <BotonPrincipal disabled={enviando} opacity={enviando ? 0.6 : 1} onPress={enviar}>
             <Button.Text color="$primarioTexto" fontSize={17} fontWeight="600">
-              Pedir traslado
+              {cambiando ? 'Guardar los cambios' : 'Pedir traslado'}
             </Button.Text>
           </BotonPrincipal>
         </YStack>
@@ -521,6 +547,13 @@ function pasajeroDe(base: Traslado, ciudadano: Ciudadano | null | undefined, per
     ...personas.filter((persona) => persona.nombreCompleto === base.pasajero).map((persona) => persona.id),
   ]
   return candidatos.length === 1 ? candidatos[0] : undefined
+}
+
+/** El día de la cita a la medianoche del teléfono, que es como vienen los días del selector. */
+function diaDe(iso: string) {
+  const fecha = new Date(iso)
+  fecha.setHours(0, 0, 0, 0)
+  return fecha
 }
 
 /** El centro de salud de `base`, armado con lo que ya trae: no hace falta esperar la lista de centros. */
