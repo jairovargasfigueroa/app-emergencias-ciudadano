@@ -25,7 +25,22 @@ const pushDisponible = !(Platform.OS === 'android' && isRunningInExpoGo())
 let moduloNotificaciones: Promise<ModuloNotificaciones | null> | null = null
 
 export function cargarNotificaciones(): Promise<ModuloNotificaciones | null> {
-  moduloNotificaciones ??= pushDisponible ? import('expo-notifications').catch(() => null) : Promise.resolve(null)
+  moduloNotificaciones ??= pushDisponible
+    ? import('expo-notifications')
+        .then((Notifications) => {
+          Notifications.setNotificationHandler({
+            // Con la app abierta el aviso se muestra igual, con banner y sonido, para que no pase desapercibido.
+            handleNotification: async () => ({
+              shouldShowBanner: true,
+              shouldShowList: true,
+              shouldPlaySound: true,
+              shouldSetBadge: false,
+            }),
+          })
+          return Notifications
+        })
+        .catch(() => null)
+    : Promise.resolve(null)
   return moduloNotificaciones
 }
 
