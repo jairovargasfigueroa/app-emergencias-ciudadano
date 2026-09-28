@@ -9,8 +9,9 @@ import { Button, H1, Input, Paragraph, Sheet, Text, XStack, YStack, useTheme, us
 import { obtenerUbicacionGps, ultimaUbicacionReciente, type Coordenadas } from '@/features/alerta/ubicacion'
 import { personasQuery } from '@/features/personas/queries'
 import { ciudadanoQuery } from '@/features/registro/queries'
-import { mensajeDeError } from '@/shared/api/cliente'
+import { ErrorApi, mensajeDeError } from '@/shared/api/cliente'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
+import { MensajeDeCampo } from '@/shared/ui/MensajeDeCampo'
 
 import type { CentroSalud, Movilidad } from './api'
 import { centrosSaludQuery, pedirTrasladoMutation } from './queries'
@@ -49,6 +50,7 @@ export function PantallaPedirTraslado() {
   const [destino, setDestino] = useState<Coordenadas | null>(null)
   const [dia, setDia] = useState<Date | null>(null)
   const [hora, setHora] = useState('10:00')
+  const [avisoCuando, setAvisoCuando] = useState<string | null>(null)
   const [peso, setPeso] = useState('')
   const [acompanantes, setAcompanantes] = useState('0')
   const [observaciones, setObservaciones] = useState('')
@@ -126,7 +128,15 @@ export function PantallaPedirTraslado() {
           toast.show('Traslado pedido', { message: ventana ? `${ventana}.` : 'Revisa aquí el estado.' })
           router.back()
         },
-        onError: (error) => toast.show('No se pudo pedir', { message: mensajeDeError(error) }),
+        onError: (error) => {
+          // A esa hora ya no se llega: se vuelve a elegir con el porqué a la vista, no en un aviso que se va solo.
+          if (error instanceof ErrorApi && error.codigo === 'HORA_INALCANZABLE') {
+            setAvisoCuando(error.message)
+            setHoja('cuando')
+            return
+          }
+          toast.show('No se pudo pedir', { message: mensajeDeError(error) })
+        },
       },
     )
   }
@@ -182,15 +192,19 @@ export function PantallaPedirTraslado() {
             etiquetaDestino={centro?.nombre ?? null}
           />
 
-          <YStack rounded={14} borderWidth={1} borderColor="$borde" overflow="hidden">
-            <Fila etiqueta="Quién viaja" valor={pasajero} onPress={() => setHoja('quien')} />
-            <Fila
-              etiqueta="Cómo viaja"
-              valor={`${TEXTO_MOVILIDAD[movilidad]}${oxigeno ? ' · Oxígeno' : ''}${equipo ? ' · Equipo' : ''}${aislamiento ? ' · Aislamiento' : ''}`}
-              onPress={() => setHoja('como')}
-            />
-            <Fila etiqueta="A dónde" valor={textoDestino} onPress={() => setHoja('destino')} />
-            <Fila etiqueta="Cuándo" valor={textoCuando} onPress={() => setHoja('cuando')} ultima />
+          <YStack gap={6}>
+            <YStack rounded={14} borderWidth={1} borderColor="$borde" overflow="hidden">
+              <Fila etiqueta="Quién viaja" valor={pasajero} onPress={() => setHoja('quien')} />
+              <Fila
+                etiqueta="Cómo viaja"
+                valor={`${TEXTO_MOVILIDAD[movilidad]}${oxigeno ? ' · Oxígeno' : ''}${equipo ? ' · Equipo' : ''}${aislamiento ? ' · Aislamiento' : ''}`}
+                onPress={() => setHoja('como')}
+              />
+              <Fila etiqueta="A dónde" valor={textoDestino} onPress={() => setHoja('destino')} />
+              <Fila etiqueta="Cuándo" valor={textoCuando} onPress={() => setHoja('cuando')} ultima />
+            </YStack>
+            {/* Si se cierra la hoja sin cambiar la hora, el porqué sigue a la vista junto a la fila. */}
+            <MensajeDeCampo texto={avisoCuando} />
           </YStack>
 
           <YStack gap={6}>
@@ -272,9 +286,11 @@ export function PantallaPedirTraslado() {
         abierto={hoja === 'cuando'}
         dia={dia}
         hora={hora}
+        aviso={avisoCuando}
         onCambiar={(nuevoDia, nuevaHora) => {
           setDia(nuevoDia)
           setHora(nuevaHora)
+          setAvisoCuando(null)
         }}
         onCerrar={() => setHoja(null)}
       />
