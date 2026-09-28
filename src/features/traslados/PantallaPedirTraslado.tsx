@@ -48,6 +48,7 @@ export function PantallaPedirTraslado() {
   const [referencia, setReferencia] = useState('')
   const [centro, setCentro] = useState<CentroSalud | null>(null)
   const [destino, setDestino] = useState<Coordenadas | null>(null)
+  const [area, setArea] = useState('')
   const [dia, setDia] = useState<Date | null>(null)
   const [hora, setHora] = useState('10:00')
   const [avisoCuando, setAvisoCuando] = useState<string | null>(null)
@@ -119,6 +120,7 @@ export function PantallaPedirTraslado() {
         centroSaludDestinoId: centro?.id ?? null,
         destinoLatitud: centro ? null : destino?.latitud,
         destinoLongitud: centro ? null : destino?.longitud,
+        destinoDetalle: area.trim() || null,
         horaCita: dia ? horaCitaComoIso(dia, hora) : null,
       },
       {
@@ -205,6 +207,16 @@ export function PantallaPedirTraslado() {
             </YStack>
             {/* Si se cierra la hoja sin cambiar la hora, el porqué sigue a la vista junto a la fila. */}
             <MensajeDeCampo texto={avisoCuando} />
+          </YStack>
+
+          <YStack gap={6}>
+            <Text fontSize={13} fontWeight="600" color="$texto">
+              ¿A qué área va?
+            </Text>
+            <Input size="$4" placeholder="Diálisis" value={area} onChangeText={setArea} />
+            <Text fontSize={12} lineHeight={17} color="$textoSecundario">
+              Si va a un servicio en particular. Así la tripulación lo deja donde lo esperan.
+            </Text>
           </YStack>
 
           <YStack gap={6}>

@@ -141,7 +141,7 @@ export function PantallaTraslado() {
           <YStack p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
             <RutaDelTraslado
               origen={traslado.origenReferencia ?? 'Origen marcado en el mapa'}
-              destino={traslado.centroSaludDestino ?? 'Destino marcado en el mapa'}
+              destino={aDonde(traslado)}
             />
           </YStack>
 
@@ -215,6 +215,12 @@ export function PantallaTraslado() {
       />
     </>
   )
+}
+
+/** "Hospital Obrero · Diálisis": el área va junto al destino, que es donde se la busca al revisar el pedido. */
+function aDonde(traslado: Traslado) {
+  const destino = traslado.centroSaludDestino ?? 'Destino marcado en el mapa'
+  return traslado.destinoDetalle ? `${destino} · ${traslado.destinoDetalle}` : destino
 }
 
 /** "Hoy 10:00": la hora a la que tiene que estar allá. Sin cita, el pedido es para lo antes posible. */
