@@ -9,7 +9,7 @@ import { Button, H1, Input, Paragraph, Sheet, Text, XStack, YStack, useTheme, us
 import { obtenerUbicacionGps, ultimaUbicacionReciente, type Coordenadas } from '@/features/alerta/ubicacion'
 import { personasQuery } from '@/features/personas/queries'
 import { ciudadanoQuery } from '@/features/registro/queries'
-import { ErrorApi, mensajeDeError } from '@/shared/api/cliente'
+import { ErrorApi } from '@/shared/api/cliente'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 import { MensajeDeCampo } from '@/shared/ui/MensajeDeCampo'
 
@@ -18,10 +18,13 @@ import { centrosSaludQuery, pedirTrasladoMutation } from './queries'
 import { MapaDelPedido, type PuntoActivo } from './MapaDelPedido'
 import { SelectorDeCuando } from './SelectorDeCuando'
 import { DETALLE_MOVILIDAD, TEXTO_MOVILIDAD, ventanaDeRecogida } from './textos'
+import { erroresPorCampo, esquemaDelPedido, mensajeDelRechazo, type CampoEscrito } from './validacion'
 
 const MOVILIDADES: Movilidad[] = ['CAMINA_CON_AYUDA', 'SILLA_DE_RUEDAS', 'CAMILLA']
 
 type Hoja = 'quien' | 'como' | 'destino' | 'cuando' | null
+
+type ErroresDelPedido = Partial<Record<CampoEscrito | 'origen' | 'destino', string>>
 
 /**
  * Una sola pantalla con filas: cada una abre lo que necesita y vuelve. Esta misma pantalla es la revisión, así
@@ -57,6 +60,7 @@ export function PantallaPedirTraslado() {
   const [observaciones, setObservaciones] = useState('')
   const [contactoNombre, setContactoNombre] = useState('')
   const [contactoTelefono, setContactoTelefono] = useState('')
+  const [intentado, setIntentado] = useState(false)
 
   // El origen pasa a ser de la persona cuando mueve el mapa: desde ahí el GPS ya no lo pisa.
   const origenDeLaPersona = useRef(false)
@@ -89,19 +93,33 @@ export function PantallaPedirTraslado() {
   const textoDestino = centro ? centro.nombre : destino ? 'Punto marcado en el mapa' : 'Elegir'
   const textoCuando = dia ? `${etiquetaDeDia(dia)} · tiene que estar ${hora}` : 'Lo antes posible'
 
+  const escrito = esquemaDelPedido.safeParse({
+    origenReferencia: referencia,
+    destinoDetalle: area,
+    contactoNombre,
+    contactoTelefono,
+    pesoAproximado: peso,
+    acompanantes,
+    observaciones,
+  })
+  // Todo lo que falta o está mal, cada cosa con su campo. Se muestra después del primer intento y cada error se va
+  // apenas se corrige, sin tener que volver a tocar "Pedir".
+  const faltas: ErroresDelPedido = escrito.success ? {} : erroresPorCampo(escrito.error)
+  if (!origen) {
+    faltas.origen = 'Falta de dónde lo recogemos: en "De dónde", mueve el mapa hasta dejar el pin ahí.'
+  }
+  if (!centro && !destino) {
+    faltas.destino = 'Falta a dónde lo llevamos: márcalo en "A dónde" o elige un centro de salud.'
+  }
+  const errores = intentado ? faltas : {}
+
   function enviar() {
-    if (!origen) {
-      toast.show('Falta el punto de recogida', { message: 'En el mapa, elige "De dónde" y deja el pin ahí.' })
+    setIntentado(true)
+    if (!escrito.success || !origen || (!centro && !destino)) {
+      toast.show('Revisa el pedido', { message: Object.values(faltas).find(Boolean) })
       return
     }
-    if (!centro && !destino) {
-      toast.show('Falta el destino', { message: 'En el mapa, elige "A dónde" y deja el pin ahí.' })
-      return
-    }
-    if (Boolean(contactoNombre.trim()) !== Boolean(contactoTelefono.trim())) {
-      toast.show('Falta un dato del contacto', { message: 'Pon el nombre y el teléfono, o deja los dos vacíos.' })
-      return
-    }
+    const datos = escrito.data
     pedir.mutate(
       {
         pasajeroId,
@@ -109,18 +127,18 @@ export function PantallaPedirTraslado() {
         oxigeno,
         equipo,
         aislamiento,
-        pesoAproximado: peso.trim() ? Number(peso) : null,
-        acompanantes: Number(acompanantes) || 0,
-        observaciones: observaciones.trim() || null,
+        pesoAproximado: datos.pesoAproximado ? Number(datos.pesoAproximado) : null,
+        acompanantes: Number(datos.acompanantes) || 0,
+        observaciones: datos.observaciones || null,
         origenLatitud: origen.latitud,
         origenLongitud: origen.longitud,
-        origenReferencia: referencia.trim() || null,
-        contactoNombre: contactoNombre.trim() || null,
-        contactoTelefono: contactoTelefono.trim() || null,
+        origenReferencia: datos.origenReferencia || null,
+        contactoNombre: datos.contactoNombre || null,
+        contactoTelefono: datos.contactoTelefono || null,
         centroSaludDestinoId: centro?.id ?? null,
         destinoLatitud: centro ? null : destino?.latitud,
         destinoLongitud: centro ? null : destino?.longitud,
-        destinoDetalle: area.trim() || null,
+        destinoDetalle: datos.destinoDetalle || null,
         horaCita: dia ? horaCitaComoIso(dia, hora) : null,
       },
       {
@@ -137,7 +155,7 @@ export function PantallaPedirTraslado() {
             setHoja('cuando')
             return
           }
-          toast.show('No se pudo pedir', { message: mensajeDeError(error) })
+          toast.show('No se pudo pedir', { message: mensajeDelRechazo(error) })
         },
       },
     )
@@ -176,23 +194,26 @@ export function PantallaPedirTraslado() {
             </Paragraph>
           </YStack>
 
-          <MapaDelPedido
-            origen={origen}
-            destino={destino}
-            activo={activo}
-            onCambiarActivo={setActivo}
-            onMover={(punto) => {
-              if (activo === 'origen') {
-                origenDeLaPersona.current = true
-                setOrigen(punto)
-              } else {
-                // Mover el pin manda sobre el centro elegido: la persona está diciendo otra cosa.
-                setDestino(punto)
-                setCentro(null)
-              }
-            }}
-            etiquetaDestino={centro?.nombre ?? null}
-          />
+          <YStack gap={6}>
+            <MapaDelPedido
+              origen={origen}
+              destino={destino}
+              activo={activo}
+              onCambiarActivo={setActivo}
+              onMover={(punto) => {
+                if (activo === 'origen') {
+                  origenDeLaPersona.current = true
+                  setOrigen(punto)
+                } else {
+                  // Mover el pin manda sobre el centro elegido: la persona está diciendo otra cosa.
+                  setDestino(punto)
+                  setCentro(null)
+                }
+              }}
+              etiquetaDestino={centro?.nombre ?? null}
+            />
+            <MensajeDeCampo texto={juntar(errores.origen, errores.destino)} />
+          </YStack>
 
           <YStack gap={6}>
             <YStack rounded={14} borderWidth={1} borderColor="$borde" overflow="hidden">
@@ -214,6 +235,7 @@ export function PantallaPedirTraslado() {
               ¿A qué área va?
             </Text>
             <Input size="$4" placeholder="Diálisis" value={area} onChangeText={setArea} />
+            <MensajeDeCampo texto={errores.destinoDetalle ?? null} />
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
               Si va a un servicio en particular. Así la tripulación lo deja donde lo esperan.
             </Text>
@@ -229,6 +251,7 @@ export function PantallaPedirTraslado() {
               value={referencia}
               onChangeText={setReferencia}
             />
+            <MensajeDeCampo texto={errores.origenReferencia ?? null} />
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
               Es lo que hace que la ambulancia encuentre la puerta.
             </Text>
@@ -246,6 +269,7 @@ export function PantallaPedirTraslado() {
               value={contactoTelefono}
               onChangeText={setContactoTelefono}
             />
+            <MensajeDeCampo texto={juntar(errores.contactoNombre, errores.contactoTelefono)} />
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
               Déjalo vacío si vas a estar tú. Sirve cuando el que pide no es el que abre la puerta.
             </Text>
@@ -261,6 +285,7 @@ export function PantallaPedirTraslado() {
                   Peso aproximado (kg)
                 </Text>
                 <Input size="$4" placeholder="70" keyboardType="number-pad" value={peso} onChangeText={setPeso} />
+                <MensajeDeCampo texto={errores.pesoAproximado ?? null} />
               </YStack>
               <YStack flex={1} gap={4}>
                 <Text fontSize={12} color="$textoSecundario">
@@ -273,6 +298,7 @@ export function PantallaPedirTraslado() {
                   value={acompanantes}
                   onChangeText={setAcompanantes}
                 />
+                <MensajeDeCampo texto={errores.acompanantes ?? null} />
               </YStack>
             </XStack>
             <Input
@@ -281,6 +307,7 @@ export function PantallaPedirTraslado() {
               value={observaciones}
               onChangeText={setObservaciones}
             />
+            <MensajeDeCampo texto={errores.observaciones ?? null} />
             <Text fontSize={12} lineHeight={17} color="$textoSecundario">
               El peso define si hace falta camilla reforzada y cuánta gente para cargar.
             </Text>
@@ -394,6 +421,12 @@ export function PantallaPedirTraslado() {
       </HojaElegir>
     </>
   )
+}
+
+/** Dos errores que van debajo del mismo bloque, como el nombre y el teléfono del contacto. */
+function juntar(...errores: (string | undefined)[]) {
+  const presentes = errores.filter((error): error is string => Boolean(error))
+  return presentes.length > 0 ? presentes.join(' ') : null
 }
 
 function etiquetaDeDia(dia: Date) {

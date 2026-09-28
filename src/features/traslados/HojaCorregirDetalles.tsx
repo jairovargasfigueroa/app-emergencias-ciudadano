@@ -8,12 +8,7 @@ import { MensajeDeCampo } from '@/shared/ui/MensajeDeCampo'
 
 import type { Traslado } from './api'
 import { actualizarDetallesMutation } from './queries'
-
-// Los máximos son los que valida el backend: es mejor frenar acá que rebotar el guardado ya escrito.
-const MAX_REFERENCIA = 255
-const MAX_NOMBRE = 255
-const MAX_TELEFONO = 30
-const MAX_OBSERVACIONES = 2000
+import { LIMITES } from './validacion'
 
 type Props = {
   abierta: boolean
@@ -108,7 +103,7 @@ export function HojaCorregirDetalles({ abierta, traslado, onCerrar }: Props) {
           <Input
             size="$4"
             placeholder="Portón verde, casa de dos pisos"
-            maxLength={MAX_REFERENCIA}
+            maxLength={LIMITES.origenReferencia}
             value={referencia}
             onChangeText={setReferencia}
           />
@@ -124,7 +119,7 @@ export function HojaCorregirDetalles({ abierta, traslado, onCerrar }: Props) {
           <Input
             size="$4"
             placeholder="Nombre"
-            maxLength={MAX_NOMBRE}
+            maxLength={LIMITES.contactoNombre}
             value={contactoNombre}
             onChangeText={setContactoNombre}
           />
@@ -132,7 +127,7 @@ export function HojaCorregirDetalles({ abierta, traslado, onCerrar }: Props) {
             size="$4"
             placeholder="Teléfono"
             keyboardType="phone-pad"
-            maxLength={MAX_TELEFONO}
+            maxLength={LIMITES.contactoTelefono}
             value={contactoTelefono}
             onChangeText={setContactoTelefono}
           />
@@ -153,7 +148,7 @@ export function HojaCorregirDetalles({ abierta, traslado, onCerrar }: Props) {
           <Input
             size="$4"
             placeholder="Algo más que la tripulación deba saber"
-            maxLength={MAX_OBSERVACIONES}
+            maxLength={LIMITES.observaciones}
             value={observaciones}
             onChangeText={setObservaciones}
           />
