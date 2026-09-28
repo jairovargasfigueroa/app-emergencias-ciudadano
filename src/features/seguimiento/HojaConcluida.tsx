@@ -4,18 +4,20 @@ import { Button, H1, Paragraph, XStack, YStack, useTheme } from 'tamagui'
 import type { EstadoIncidente } from './api'
 import { volverAlInicio } from './navegacion'
 
-const MENSAJES: Partial<Record<EstadoIncidente, { titulo: string; detalle: string }>> = {
-  ATENDIDO: { titulo: 'Servicio concluido', detalle: 'El paciente fue entregado.' },
-  // Cerrar por falsa alarma no es un reproche a quien pidió ayuda: avisar estuvo bien.
-  FALSA_ALARMA: { titulo: 'Caso cerrado', detalle: 'La central confirmó que no hacía falta una ambulancia.' },
-  ATENDIDO_EXTERNAMENTE: { titulo: 'Caso cerrado', detalle: 'Otro servicio atendió la emergencia.' },
-  CANCELADO: { titulo: 'Caso cancelado', detalle: 'La central canceló este caso.' },
+/**
+ * Todos los estados finales se dan como "Servicio concluido", con una línea neutra que dice cómo terminó. CANCELADO y
+ * cualquier otro estado final llevan la línea genérica, sin atribuirle el cierre a nadie.
+ */
+const DETALLES: Partial<Record<EstadoIncidente, string>> = {
+  ATENDIDO: 'La unidad atendió la emergencia.',
+  FALSA_ALARMA: 'La unidad fue al lugar y no encontró a nadie.',
+  ATENDIDO_EXTERNAMENTE: 'Ya lo habían llevado por otro medio.',
 }
 
 /** PB-06 R4 y CA-07: el incidente llegó a un estado final y el seguimiento terminó. */
 export function HojaConcluida({ estado }: { estado: EstadoIncidente }) {
   const tema = useTheme()
-  const mensaje = MENSAJES[estado] ?? { titulo: 'Caso cerrado', detalle: 'El caso ya no está abierto.' }
+  const detalle = DETALLES[estado] ?? 'El caso se cerró.'
   const atendido = estado === 'ATENDIDO'
 
   return (
@@ -37,13 +39,14 @@ export function HojaConcluida({ estado }: { estado: EstadoIncidente }) {
           />
         </YStack>
         <H1 color="$texto" fontSize={24} lineHeight={30} fontWeight="600" flex={1}>
-          {mensaje.titulo}
+          Servicio concluido
         </H1>
       </XStack>
 
       <Paragraph color="$texto" fontSize={16} lineHeight={24}>
-        {mensaje.detalle}
+        {detalle}
       </Paragraph>
+      {/* Cerrar por falsa alarma no es un reproche a quien pidió ayuda: avisar estuvo bien. */}
       <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
         {estado === 'FALSA_ALARMA'
           ? 'Hiciste bien en avisar. Dejamos de seguir la ubicación de las unidades.'
