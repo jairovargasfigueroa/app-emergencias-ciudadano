@@ -6,7 +6,7 @@ import { Button, H1, Paragraph, Spinner, Text, XStack, YStack } from 'tamagui'
 
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
-import { trasladoVigente } from './api'
+import { trasladoVigente, type Traslado } from './api'
 import { misTrasladosQuery } from './queries'
 import { TarjetaTraslado } from './TarjetaTraslado'
 
@@ -18,7 +18,11 @@ export function PantallaTraslados() {
   const margenes = useSafeAreaInsets()
   const traslados = useQuery(misTrasladosQuery())
 
-  const proximos = (traslados.data ?? []).filter((traslado) => trasladoVigente(traslado.estado))
+  // Los próximos van por la fecha del viaje, el más cercano arriba: el de mañana importa antes que el de la semana
+  // que viene, aunque se haya pedido después. El historial queda como viene, del más reciente al más viejo.
+  const proximos = (traslados.data ?? [])
+    .filter((traslado) => trasladoVigente(traslado.estado))
+    .sort((uno, otro) => momentoDelViaje(uno) - momentoDelViaje(otro))
   const anteriores = (traslados.data ?? []).filter((traslado) => !trasladoVigente(traslado.estado))
 
   return (
@@ -81,6 +85,11 @@ export function PantallaTraslados() {
       </YStack>
     </ScrollView>
   )
+}
+
+/** Cuándo es el viaje: la hora de la cita, o la salida si es para lo antes posible. */
+function momentoDelViaje(traslado: Traslado) {
+  return new Date(traslado.horaCita ?? traslado.horaSalidaEstimada).getTime()
 }
 
 function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
