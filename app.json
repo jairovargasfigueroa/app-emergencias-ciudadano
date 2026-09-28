@@ -41,6 +41,13 @@
         {
           "locationWhenInUsePermission": "SGA Ciudadano envía tu ubicación con la alerta para que la ambulancia llegue a ti."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#D92D20",
+          "defaultChannel": "avisos"
+        }
       ]
     ],
     "experiments": {

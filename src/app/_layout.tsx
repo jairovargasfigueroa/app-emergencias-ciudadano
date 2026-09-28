@@ -12,6 +12,7 @@ import { useColorScheme } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TamaguiProvider, ToastProvider, ToastViewport } from 'tamagui'
 
+import { Avisos } from '@/features/notificaciones/Avisos'
 import { ciudadanoQuery } from '@/features/registro/queries'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
 import { queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
@@ -85,6 +86,9 @@ export default function LayoutRaiz() {
  *
  * PB-06: el caso guardado se lee antes de pintar nada. Si la app se cerró con un caso abierto, el inicio lo encuentra
  * al abrirse y lleva directo a su seguimiento; aquí no se navega, para que el seguimiento se abra una sola vez.
+ *
+ * Con registro corren además los avisos push, en cualquier pantalla: desde que termina el registro o la app arranca
+ * con sesión.
  */
 function Pantallas() {
   const ciudadano = useQuery(ciudadanoQuery())
@@ -103,19 +107,22 @@ function Pantallas() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={registrado}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="pedir-traslado" />
-        <Stack.Screen name="traslado/[trasladoId]" />
-        <Stack.Screen name="pin" />
-        <Stack.Screen name="seguimiento/[incidenteId]" />
-        <Stack.Screen name="demo/index" />
-        <Stack.Screen name="demo/recorrido" />
-      </Stack.Protected>
-      <Stack.Protected guard={!registrado}>
-        <Stack.Screen name="registro" />
-      </Stack.Protected>
-    </Stack>
+    <>
+      {ciudadano.data ? <Avisos ciudadanoId={ciudadano.data.id} /> : null}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={registrado}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="pedir-traslado" />
+          <Stack.Screen name="traslado/[trasladoId]" />
+          <Stack.Screen name="pin" />
+          <Stack.Screen name="seguimiento/[incidenteId]" />
+          <Stack.Screen name="demo/index" />
+          <Stack.Screen name="demo/recorrido" />
+        </Stack.Protected>
+        <Stack.Protected guard={!registrado}>
+          <Stack.Screen name="registro" />
+        </Stack.Protected>
+      </Stack>
+    </>
   )
 }
