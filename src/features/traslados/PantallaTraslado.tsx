@@ -221,19 +221,21 @@ export function PantallaTraslado() {
                 </Paragraph>
               </YStack>
 
+              {/* Con la unidad en la puerta ya no se cancela desde acá: se habla con la tripulación. Con el paciente
+                  a bordo tampoco hay nada que cancelar, y el viaje ya está a la vista arriba. */}
               {sePuedeCancelar(traslado) ? (
                 <Button height={52} rounded={14} variant="outlined" onPress={() => setCancelando(true)}>
                   <Button.Text color="$primario" fontSize={16} fontWeight="600">
                     Cancelar el traslado
                   </Button.Text>
                 </Button>
-              ) : (
+              ) : traslado.estadoUnidad === 'EN_EL_LUGAR' ? (
                 <YStack p={16} rounded={14} bg="$superficie" borderWidth={1} borderColor="$borde">
                   <Paragraph color="$texto" fontSize={14} lineHeight={20}>
                     La unidad ya llegó. Si no van a viajar, díselo a la tripulación.
                   </Paragraph>
                 </YStack>
-              )}
+              ) : null}
             </YStack>
           ) : null}
 
