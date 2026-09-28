@@ -151,7 +151,7 @@ export function PantallaTraslado() {
               <Dato etiqueta="Cuándo" valor={cuando(traslado)} />
               <Dato etiqueta="Cómo viaja" valor={TEXTO_MOVILIDAD[traslado.movilidad]} />
               <Dato etiqueta="Necesita" valor={necesita(traslado)} />
-              {/* Los dos son opcionales al pedir: si no se dijeron, no hay renglón que diga "no sé". */}
+              {/* Solo cuando hay algo que decir: un renglón con "sin dato" o "0 personas" no le sirve a nadie. */}
               {traslado.pesoAproximado !== null ? (
                 <Dato etiqueta="Peso aproximado" valor={`${traslado.pesoAproximado} kg`} />
               ) : null}
