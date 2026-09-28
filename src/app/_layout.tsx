@@ -7,13 +7,12 @@ import { useFonts } from 'expo-font'
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type Theme } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useColorScheme } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TamaguiProvider, ToastProvider, ToastViewport } from 'tamagui'
 
 import { ciudadanoQuery } from '@/features/registro/queries'
-import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
 import { queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
 import { ToastActual } from '@/shared/ui/ToastActual'
@@ -83,31 +82,21 @@ export default function LayoutRaiz() {
 /**
  * PB-02 R1: sin registro ligero solo existe la pantalla de registro. Al registrarse, el guard cambia y el router
  * lleva solo a la pantalla del botón.
+ *
+ * PB-06: el caso guardado se lee antes de pintar nada. Si la app se cerró con un caso abierto, el inicio lo encuentra
+ * al abrirse y lleva directo a su seguimiento; aquí no se navega, para que el seguimiento se abra una sola vez.
  */
 function Pantallas() {
   const ciudadano = useQuery(ciudadanoQuery())
   const enCurso = useQuery(seguimientoEnCursoQuery())
   const listo = !ciudadano.isPending && !enCurso.isPending
   const registrado = ciudadano.data != null
-  const yaSeRestauro = useRef(false)
 
   useEffect(() => {
     if (listo) {
       SplashScreen.hide()
     }
   }, [listo])
-
-  useEffect(() => {
-    // Solo al abrir la app: después, guardar un caso nuevo no debe mover al ciudadano de pantalla.
-    if (!listo || yaSeRestauro.current) {
-      return
-    }
-    yaSeRestauro.current = true
-    // PB-06: si la app se cerró con un caso abierto, se abre directo en su seguimiento y no en el botón.
-    if (registrado && enCurso.data) {
-      abrirSeguimiento(enCurso.data, { reemplazar: true })
-    }
-  }, [listo, registrado, enCurso.data])
 
   if (!listo) {
     return null

@@ -1,8 +1,8 @@
 import Feather from '@expo/vector-icons/Feather'
-import { router } from 'expo-router'
 import { Button, H1, Paragraph, XStack, YStack, useTheme } from 'tamagui'
 
 import type { EstadoIncidente } from './api'
+import { volverAlInicio } from './navegacion'
 
 const MENSAJES: Partial<Record<EstadoIncidente, { titulo: string; detalle: string }>> = {
   ATENDIDO: { titulo: 'Servicio concluido', detalle: 'El paciente fue entregado.' },
@@ -50,17 +50,7 @@ export function HojaConcluida({ estado }: { estado: EstadoIncidente }) {
           : 'Dejamos de seguir la ubicación de las unidades.'}
       </Paragraph>
 
-      {/*
-       * Vuelve al inicio que ya está debajo si el seguimiento se abrió desde el botón o desde el pin; si se restauró al
-       * abrir la app no hay inicio debajo, y dismissTo lo pone en lugar del seguimiento en vez de apilar otro.
-       */}
-      <Button
-        height={52}
-        rounded={14}
-        bg="$superficie"
-        borderColor="$bordeFuerte"
-        onPress={() => router.dismissTo('/')}
-      >
+      <Button height={52} rounded={14} bg="$superficie" borderColor="$bordeFuerte" onPress={volverAlInicio}>
         <Button.Text color="$texto" fontSize={16} fontWeight="500">
           Volver al inicio
         </Button.Text>
