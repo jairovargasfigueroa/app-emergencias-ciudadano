@@ -1,7 +1,15 @@
-import { horaCorta } from '@/shared/formato/tiempo'
+import { diaNatural, horaCorta } from '@/shared/formato/tiempo'
 import type { TonoInsignia } from '@/shared/ui/Insignia'
 
-import type { EstadoTraslado, EstadoUnidad, Movilidad, TipoUnidad, Traslado } from './api'
+import {
+  trasladoVigente,
+  unidadYaLlego,
+  type EstadoTraslado,
+  type EstadoUnidad,
+  type Movilidad,
+  type TipoUnidad,
+  type Traslado,
+} from './api'
 
 /** Lo que el ciudadano lee, no lo que el sistema piensa: "sin unidad" no le dice nada a una familia. */
 export const TEXTO_ESTADO: Record<EstadoTraslado, string> = {
@@ -50,18 +58,43 @@ export const TEXTO_ESTADO_UNIDAD: Partial<Record<EstadoUnidad, string>> = {
  * Una ventana y no una hora exacta: hay un margen que el tráfico se come, y prometer "9:12" es prometer un minuto
  * que nadie puede sostener. Las horas son las de recogida, que es lo que le importa a la familia: la unidad tarda
  * en llegar a la puerta después de salir. Si la ventana cae dentro del mismo minuto, va una sola hora.
+ *
+ * Se promete desde que se pide, aunque el traslado sea para dentro de tres días: con eso la familia se organiza.
+ * Deja de decirse cuando ya no sirve, porque el traslado terminó o la unidad ya está en la puerta. Siempre es la
+ * que manda el servidor: si una unidad devuelve el traslado, la ventana puede correrse. Con `conDia` dice también
+ * el día cuando no es hoy, para donde no hay nada alrededor que lo diga.
  */
-export function ventanaDeRecogida(traslado: Traslado): string | null {
+export function ventanaDeRecogida(traslado: Traslado, { conDia = false } = {}): string | null {
   if (!traslado.horaRecogidaDesde || !traslado.horaRecogidaHasta) {
+    return null
+  }
+  if (!trasladoVigente(traslado.estado) || unidadYaLlego(traslado)) {
     return null
   }
   // El comienzo ya pasó: decir "entre 09:00 y 09:40" a las 09:30 suena a que se atrasaron cuando no es así.
   if (new Date(traslado.horaRecogidaDesde).getTime() < Date.now()) {
-    return `Pasan antes de las ${horaCorta(traslado.horaRecogidaHasta)}`
+    const dia = conDia ? diaEnLaFrase(traslado.horaRecogidaHasta) : ''
+    return `Pasamos a recogerlo${dia} antes de las ${horaCorta(traslado.horaRecogidaHasta)}`
   }
+  const dia = conDia ? diaEnLaFrase(traslado.horaRecogidaDesde) : ''
   const desde = horaCorta(traslado.horaRecogidaDesde)
   const hasta = horaCorta(traslado.horaRecogidaHasta)
-  return desde === hasta ? `Pasan cerca de las ${desde}` : `Pasan entre ${desde} y ${hasta}`
+  return desde === hasta
+    ? `Pasamos a recogerlo${dia} cerca de las ${desde}`
+    : `Pasamos a recogerlo${dia} entre ${desde} y ${hasta}`
+}
+
+/** " mañana" o " el jueves 2": el día dicho dentro de una frase. Hoy no se dice, se entiende solo. */
+function diaEnLaFrase(iso: string) {
+  const dia = diaNatural(iso)
+  if (dia === 'Hoy') {
+    return ''
+  }
+  if (dia === 'Mañana' || dia === 'Ayer') {
+    return ` ${dia.toLowerCase()}`
+  }
+  const fecha = new Date(iso)
+  return ` el ${fecha.toLocaleDateString('es-BO', { weekday: 'long' })} ${fecha.getDate()}`
 }
 
 export const TEXTO_MOVILIDAD: Record<Movilidad, string> = {

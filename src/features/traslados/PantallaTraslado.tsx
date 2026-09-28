@@ -10,7 +10,7 @@ import { mensajeDeError } from '@/shared/api/cliente'
 import { diaNatural, horaCorta } from '@/shared/formato/tiempo'
 import { Insignia } from '@/shared/ui/Insignia'
 
-import { sePuedeCancelar, trasladoVigente, yaEsHoraDeSalir, type Traslado } from './api'
+import { sePuedeCancelar, trasladoVigente, type Traslado } from './api'
 import { cancelarTrasladoMutation, misTrasladosQuery } from './queries'
 import { DialogoCancelarTraslado } from './DialogoCancelarTraslado'
 import { HojaCorregirDetalles } from './HojaCorregirDetalles'
@@ -71,7 +71,7 @@ export function PantallaTraslado() {
   }
 
   const recibe = quienRecibe(traslado)
-  const ventana = yaEsHoraDeSalir(traslado.estado) ? ventanaDeRecogida(traslado) : null
+  const ventana = ventanaDeRecogida(traslado, { conDia: true })
   const enQueVa = traslado.estadoUnidad ? TEXTO_ESTADO_UNIDAD[traslado.estadoUnidad] : undefined
 
   return (

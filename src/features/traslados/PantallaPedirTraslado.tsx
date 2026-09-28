@@ -16,7 +16,7 @@ import type { CentroSalud, Movilidad } from './api'
 import { centrosSaludQuery, pedirTrasladoMutation } from './queries'
 import { MapaDelPedido, type PuntoActivo } from './MapaDelPedido'
 import { SelectorDeCuando } from './SelectorDeCuando'
-import { DETALLE_MOVILIDAD, TEXTO_MOVILIDAD } from './textos'
+import { DETALLE_MOVILIDAD, TEXTO_MOVILIDAD, ventanaDeRecogida } from './textos'
 
 const MOVILIDADES: Movilidad[] = ['CAMINA_CON_AYUDA', 'SILLA_DE_RUEDAS', 'CAMILLA']
 
@@ -116,8 +116,10 @@ export function PantallaPedirTraslado() {
         horaCita: dia ? horaCitaComoIso(dia, hora) : null,
       },
       {
-        onSuccess: () => {
-          toast.show('Traslado pedido', { message: 'Revisa aquí el estado.' })
+        // La ventana ya viene calculada en la respuesta: se dice al confirmar, que es cuando la familia se organiza.
+        onSuccess: (traslado) => {
+          const ventana = ventanaDeRecogida(traslado, { conDia: true })
+          toast.show('Traslado pedido', { message: ventana ? `${ventana}.` : 'Revisa aquí el estado.' })
           router.back()
         },
         onError: (error) => toast.show('No se pudo pedir', { message: mensajeDeError(error) }),
