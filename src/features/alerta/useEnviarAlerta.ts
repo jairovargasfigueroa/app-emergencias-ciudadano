@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useToastController } from 'tamagui'
 
-import { ciudadanoQuery, olvidarCiudadano } from '@/features/acceso/queries'
+import { cerrarSesionDelCiudadano, ciudadanoQuery } from '@/features/acceso/queries'
 import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { recordarSeguimiento } from '@/features/seguimiento/queries'
 import { ErrorApi } from '@/shared/api/cliente'
@@ -54,7 +54,7 @@ export function useEnviarAlerta(alEnviar: (seguimiento: SeguimientoGuardado) => 
         onError: (error) => {
           if (error instanceof ErrorApi && error.status === 404) {
             // El backend ya no conoce al ciudadano guardado (R1: toda alerta tiene emisor): se pide el registro otra vez.
-            void olvidarCiudadano(queryClient)
+            void cerrarSesionDelCiudadano(queryClient)
             toast.show('Necesitamos registrarte de nuevo', { message: 'Tu registro ya no existe en el sistema.' })
             return
           }
