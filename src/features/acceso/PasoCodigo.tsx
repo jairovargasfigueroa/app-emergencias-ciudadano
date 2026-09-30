@@ -27,7 +27,10 @@ type Props = {
   onCambiarNumero: () => void
 }
 
-/** Segundo paso del ingreso: el código que llegó por SMS. */
+/**
+ * Segundo paso del ingreso: el código que llegó por SMS. Si Android verifica el número por su cuenta, la pantalla de
+ * ingreso sigue sola y este paso ni se completa.
+ */
 export function PasoCodigo({ numero, enviadoEn, aviso, onConfirmar, onReenviar, onCambiarNumero }: Props) {
   const ahora = useAhora()
   const [reenviando, setReenviando] = useState(false)

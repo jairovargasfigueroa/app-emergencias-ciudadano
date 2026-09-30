@@ -1,6 +1,7 @@
 import {
   getAuth,
   getIdToken,
+  onAuthStateChanged,
   signInWithPhoneNumber,
   signOut,
   type ConfirmationResult,
@@ -32,6 +33,18 @@ export async function enviarCodigo(numero: string): Promise<ConfirmationResult> 
 export function usuarioVerificado(numero: string) {
   const usuario = getAuth().currentUser
   return usuario?.phoneNumber === numeroInternacional(numero) ? usuario : null
+}
+
+/**
+ * Avisa cuando el número queda verificado. Pasa al confirmar el código y también cuando Android lo verifica por su
+ * cuenta, leyendo el SMS o sin mandarlo: entonces la persona no escribe nada. Devuelve la función para dejar de escuchar.
+ */
+export function escucharVerificacion(numero: string, alVerificar: () => void) {
+  return onAuthStateChanged(getAuth(), (usuario) => {
+    if (usuario?.phoneNumber === numeroInternacional(numero)) {
+      alVerificar()
+    }
+  })
 }
 
 /**

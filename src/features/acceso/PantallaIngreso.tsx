@@ -1,6 +1,6 @@
 import type { ConfirmationResult } from '@react-native-firebase/auth'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { KeyboardAvoidingView, ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { YStack } from 'tamagui'
@@ -8,7 +8,14 @@ import { YStack } from 'tamagui'
 import { ErrorApi } from '@/shared/api/cliente'
 import { MarcaSga } from '@/shared/ui/MarcaSga'
 
-import { cerrarVerificacion, enviarCodigo, idTokenDelNumero, mensajeDeFirebase } from './firebase'
+import {
+  cerrarVerificacion,
+  enviarCodigo,
+  escucharVerificacion,
+  idTokenDelNumero,
+  mensajeDeFirebase,
+  usuarioVerificado,
+} from './firebase'
 import { PasoCodigo } from './PasoCodigo'
 import { PasoNombre, type DatosDePrimeraVez } from './PasoNombre'
 import { PasoNumero } from './PasoNumero'
@@ -40,7 +47,7 @@ export function PantallaIngreso() {
   const [ingresando, setIngresando] = useState(false)
   // Cada paso nuevo abre un intento: lo que responde tarde un intento anterior ya no cambia la pantalla.
   const intento = useRef(0)
-  // Una sola llamada al servidor a la vez, aunque se toque dos veces el botón.
+  // Una sola llamada al servidor a la vez: el código confirmado y la verificación de Android pueden llegar juntos.
   const llamandoAlServidor = useRef(false)
 
   function mostrar(siguiente: Paso, mensaje: string | null = null) {
@@ -69,17 +76,20 @@ export function PantallaIngreso() {
     try {
       await confirmacion.confirm(codigo)
     } catch (error) {
-      if (mio === intento.current) {
-        setAviso(mensajeDeFirebase(error))
+      // Si Android ya verificó el número por su cuenta, el código escrito llega tarde y falla: no importa.
+      if (!usuarioVerificado(numero)) {
+        if (mio === intento.current) {
+          setAviso(mensajeDeFirebase(error))
+        }
+        return
       }
-      return
     }
     if (mio === intento.current) {
       await alVerificarNumero(numero)
     }
   }
 
-  /** El número quedó verificado con el código: falta que el servidor abra la sesión. */
+  /** El número quedó verificado, con el código o por Android: falta que el servidor abra la sesión. */
   async function alVerificarNumero(numero: string) {
     ++intento.current
     mostrar({ tipo: 'verificado', numero })
@@ -133,6 +143,19 @@ export function PantallaIngreso() {
     void cerrarVerificacion()
     mostrar({ tipo: 'numero', escrito: numero })
   }
+
+  // Android puede verificar el número sin que la persona escriba el código: si pasa, se sigue solo.
+  const numeroEsperandoCodigo = paso.tipo === 'codigo' ? paso.numero : null
+  const alVerificarPorSuCuenta = useEffectEvent((numero: string) => {
+    void alVerificarNumero(numero)
+  })
+
+  useEffect(() => {
+    if (numeroEsperandoCodigo === null) {
+      return
+    }
+    return escucharVerificacion(numeroEsperandoCodigo, () => alVerificarPorSuCuenta(numeroEsperandoCodigo))
+  }, [numeroEsperandoCodigo])
 
   // El último número se lee antes de pintar el primer paso, para que aparezca ya escrito.
   if (ultimoNumero.isPending) {
