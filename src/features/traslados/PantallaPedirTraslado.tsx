@@ -18,11 +18,11 @@ import {
   useToastController,
 } from 'tamagui'
 
+import type { Ciudadano } from '@/features/acceso/api'
+import { ciudadanoQuery } from '@/features/acceso/queries'
 import { obtenerUbicacionGps, ultimaUbicacionReciente, type Coordenadas } from '@/features/alerta/ubicacion'
 import type { Persona } from '@/features/personas/api'
 import { personasQuery } from '@/features/personas/queries'
-import type { Ciudadano } from '@/features/acceso/api'
-import { ciudadanoQuery } from '@/features/acceso/queries'
 import { ErrorApi } from '@/shared/api/cliente'
 import { horaCorta } from '@/shared/formato/tiempo'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
