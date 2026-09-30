@@ -1,5 +1,6 @@
 import { mutationOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
 
+import { dejarDeRecibirAvisos } from '@/features/notificaciones/notificaciones'
 import { guardarSesion, type Sesion } from '@/shared/sesion/almacen'
 import { cerrarSesion, sesionKeys, sesionQuery } from '@/shared/sesion/queries'
 
@@ -79,7 +80,12 @@ export const renovarSesionMutation = (queryClient: QueryClient) =>
     },
   })
 
-/** Cierra la sesión cuando el backend ya no reconoce al ciudadano: la app vuelve a la pantalla de ingreso. */
-export function olvidarCiudadano(queryClient: QueryClient) {
-  return cerrarSesion(queryClient)
+/**
+ * Cierra la sesión del ciudadano en este teléfono. Primero, mientras el token todavía sirve, el teléfono deja de recibir
+ * los avisos de la cuenta; después se borra la sesión y la app vuelve a la pantalla de ingreso. El último número queda
+ * recordado para volver a entrar.
+ */
+export async function cerrarSesionDelCiudadano(queryClient: QueryClient) {
+  await dejarDeRecibirAvisos()
+  await cerrarSesion(queryClient)
 }
