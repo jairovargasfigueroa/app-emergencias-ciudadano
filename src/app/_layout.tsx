@@ -12,8 +12,9 @@ import { useColorScheme } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TamaguiProvider, ToastProvider, ToastViewport } from 'tamagui'
 
-import { Avisos } from '@/features/notificaciones/Avisos'
 import { ciudadanoQuery } from '@/features/acceso/queries'
+import { useRevisarSesionAlAbrir } from '@/features/acceso/useRevisarSesionAlAbrir'
+import { Avisos } from '@/features/notificaciones/Avisos'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
 import { queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
 import { ToastActual } from '@/shared/ui/ToastActual'
@@ -87,13 +88,15 @@ export default function LayoutRaiz() {
  * PB-06: el caso guardado se lee antes de pintar nada. Si la app se cerró con un caso abierto, el inicio lo encuentra
  * al abrirse y lleva directo a su seguimiento; aquí no se navega, para que el seguimiento se abra una sola vez.
  *
- * Con sesión corren además los avisos push, en cualquier pantalla: desde que se entra o la app arranca con sesión.
+ * Con sesión corren además los avisos push, en cualquier pantalla: desde que se entra o la app arranca con sesión. Y si
+ * la app arranca con una sesión a la que le queda poco, se renueva por detrás.
  */
 function Pantallas() {
   const ciudadano = useQuery(ciudadanoQuery())
   const enCurso = useQuery(seguimientoEnCursoQuery())
   const listo = !ciudadano.isPending && !enCurso.isPending
   const conSesion = ciudadano.data != null
+  useRevisarSesionAlAbrir()
 
   useEffect(() => {
     if (listo) {

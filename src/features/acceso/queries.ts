@@ -58,6 +58,27 @@ export const ingresarMutation = (queryClient: QueryClient) =>
     },
   })
 
+/**
+ * Cambia el token de la sesión por uno nuevo antes de que venza. Recibe el token que se renueva: si mientras tanto la
+ * sesión se cerró o es otra, el token nuevo ya no le corresponde y no se guarda. Un 401 lo atiende el manejador global,
+ * que cierra la sesión.
+ */
+export const renovarSesionMutation = (queryClient: QueryClient) =>
+  mutationOptions({
+    mutationFn: (_tokenQueSeRenueva: string) => accesoApi.renovar(),
+    // Un solo intento por arranque: sin conexión falla enseguida y queda margen para el próximo.
+    networkMode: 'always',
+    onSuccess: async ({ token, venceEn }, tokenQueSeRenueva) => {
+      const actual = queryClient.getQueryData(sesionQuery<Ciudadano>().queryKey)
+      if (!actual || actual.token !== tokenQueSeRenueva) {
+        return
+      }
+      const renovada: Sesion<Ciudadano> = { ...actual, token, venceEn }
+      await guardarSesion(renovada)
+      queryClient.setQueryData(sesionKeys.actual, renovada)
+    },
+  })
+
 /** Cierra la sesión cuando el backend ya no reconoce al ciudadano: la app vuelve a la pantalla de ingreso. */
 export function olvidarCiudadano(queryClient: QueryClient) {
   return cerrarSesion(queryClient)
