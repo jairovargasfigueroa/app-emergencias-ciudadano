@@ -36,7 +36,7 @@ export function usuarioVerificado(numero: string) {
 
 /**
  * El ID token que prueba el número, o `null` si ya no hay un usuario que lo haya verificado. Vale una hora: si venció,
- * Firebase entrega uno nuevo sin pedir otro SMS.
+ * Firebase entrega uno nuevo sin pedir otro SMS, así que sirve aunque la persona tarde en escribir su nombre.
  */
 export async function idTokenDelNumero(numero: string): Promise<string | null> {
   const usuario = usuarioVerificado(numero)

@@ -10,6 +10,7 @@ import { MarcaSga } from '@/shared/ui/MarcaSga'
 
 import { cerrarVerificacion, enviarCodigo, idTokenDelNumero, mensajeDeFirebase } from './firebase'
 import { PasoCodigo } from './PasoCodigo'
+import { PasoNombre, type DatosDePrimeraVez } from './PasoNombre'
 import { PasoNumero } from './PasoNumero'
 import { PasoVerificado } from './PasoVerificado'
 import { ingresarMutation, ultimoNumeroQuery } from './queries'
@@ -22,10 +23,12 @@ type Paso =
     }
   | { tipo: 'codigo'; numero: string; confirmacion: ConfirmationResult; enviadoEn: number }
   | { tipo: 'verificado'; numero: string }
+  | { tipo: 'nombre'; numero: string }
 
 /**
- * Entrar y registrarse son el mismo camino para el ciudadano: su número y el código del SMS. Al entrar, la sesión queda
- * guardada y el guard del router cambia solo a las pantallas de adentro.
+ * Entrar y registrarse son el mismo camino para el ciudadano: su número, el código del SMS y, solo la primera vez, su
+ * nombre con el aviso de privacidad. Al entrar, la sesión queda guardada y el guard del router cambia solo a las
+ * pantallas de adentro.
  */
 export function PantallaIngreso() {
   const margenes = useSafeAreaInsets()
@@ -83,7 +86,7 @@ export function PantallaIngreso() {
     await entrar(numero)
   }
 
-  async function entrar(numero: string) {
+  async function entrar(numero: string, primeraVez?: DatosDePrimeraVez) {
     if (llamandoAlServidor.current) {
       return
     }
@@ -96,7 +99,7 @@ export function PantallaIngreso() {
         mostrar({ tipo: 'numero', escrito: numero }, 'Vuelve a pedir el código para verificar tu número.')
         return
       }
-      await ingresar.mutateAsync({ numero, idToken })
+      await ingresar.mutateAsync({ numero, idToken, ...primeraVez })
       // Adentro ya manda la sesión del servidor.
       void cerrarVerificacion()
     } catch (error) {
@@ -108,6 +111,11 @@ export function PantallaIngreso() {
   }
 
   function alFallarElIngreso(numero: string, error: unknown) {
+    if (error instanceof ErrorApi && error.codigo === 'NOMBRE_REQUERIDO') {
+      // Primera vez con este número. La verificación sigue valiendo: se vuelve a llamar con el nombre, sin otro SMS.
+      mostrar({ tipo: 'nombre', numero }, paso.tipo === 'nombre' ? error.message : null)
+      return
+    }
     if (error instanceof ErrorApi && error.codigo === 'VERIFICACION_TELEFONO_INVALIDA') {
       // La verificación no sirve o venció: se empieza otra vez desde el número.
       void cerrarVerificacion()
@@ -163,6 +171,15 @@ export function PantallaIngreso() {
               ingresando={ingresando}
               aviso={aviso}
               onReintentar={() => void entrar(paso.numero)}
+              onCambiarNumero={() => cambiarNumero(paso.numero)}
+            />
+          ) : null}
+
+          {paso.tipo === 'nombre' ? (
+            <PasoNombre
+              numero={paso.numero}
+              aviso={aviso}
+              onEntrar={(datos) => entrar(paso.numero, datos)}
               onCambiarNumero={() => cambiarNumero(paso.numero)}
             />
           ) : null}
