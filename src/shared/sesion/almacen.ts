@@ -4,6 +4,11 @@ import * as SecureStore from 'expo-secure-store'
 export type Sesion<T> = {
   token: string
   usuario: T
+  /**
+   * Cuándo vence el token (ISO-8601 en UTC), para renovarlo antes. Falta en las sesiones guardadas antes de que el
+   * servidor lo informara.
+   */
+  venceEn?: string
 }
 
 const CLAVE_SESION = 'sga.sesion'
