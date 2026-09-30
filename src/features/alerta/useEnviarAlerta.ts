@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useToastController } from 'tamagui'
 
-import { ciudadanoQuery, olvidarCiudadano } from '@/features/registro/queries'
+import { ciudadanoQuery, olvidarCiudadano } from '@/features/acceso/queries'
 import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { recordarSeguimiento } from '@/features/seguimiento/queries'
 import { ErrorApi } from '@/shared/api/cliente'

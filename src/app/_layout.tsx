@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TamaguiProvider, ToastProvider, ToastViewport } from 'tamagui'
 
 import { Avisos } from '@/features/notificaciones/Avisos'
-import { ciudadanoQuery } from '@/features/registro/queries'
+import { ciudadanoQuery } from '@/features/acceso/queries'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
 import { queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
 import { ToastActual } from '@/shared/ui/ToastActual'

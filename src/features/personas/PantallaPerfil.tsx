@@ -4,7 +4,7 @@ import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Form, H1, Input, Paragraph, Text, XStack, YStack, useToastController } from 'tamagui'
 
-import { ciudadanoQuery } from '@/features/registro/queries'
+import { ciudadanoQuery } from '@/features/acceso/queries'
 import { mensajeDeError } from '@/shared/api/cliente'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 

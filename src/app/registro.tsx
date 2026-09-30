@@ -1,3 +1,3 @@
-import { PantallaRegistro } from '@/features/registro/PantallaRegistro'
+import { PantallaRegistro } from '@/features/acceso/PantallaRegistro'
 
 export default PantallaRegistro

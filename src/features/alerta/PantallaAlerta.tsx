@@ -7,7 +7,7 @@ import { Button, H1, Paragraph, Text, XStack, YStack } from 'tamagui'
 
 import { BotonDemo } from '@/features/demo/BotonDemo'
 import { DEMO } from '@/features/demo/bandera'
-import { ciudadanoQuery } from '@/features/registro/queries'
+import { ciudadanoQuery } from '@/features/acceso/queries'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
 import { MarcaSga } from '@/shared/ui/MarcaSga'
