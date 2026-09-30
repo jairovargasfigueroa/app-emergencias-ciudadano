@@ -81,20 +81,19 @@ export default function LayoutRaiz() {
 }
 
 /**
- * PB-02 R1: sin registro ligero solo existe la pantalla de registro. Al registrarse, el guard cambia y el router
- * lleva solo a la pantalla del botón.
+ * Sin sesión solo existe la pantalla de ingreso, que sirve también para registrarse. Al entrar, el guard cambia y el
+ * router lleva solo a la pantalla del botón.
  *
  * PB-06: el caso guardado se lee antes de pintar nada. Si la app se cerró con un caso abierto, el inicio lo encuentra
  * al abrirse y lleva directo a su seguimiento; aquí no se navega, para que el seguimiento se abra una sola vez.
  *
- * Con registro corren además los avisos push, en cualquier pantalla: desde que termina el registro o la app arranca
- * con sesión.
+ * Con sesión corren además los avisos push, en cualquier pantalla: desde que se entra o la app arranca con sesión.
  */
 function Pantallas() {
   const ciudadano = useQuery(ciudadanoQuery())
   const enCurso = useQuery(seguimientoEnCursoQuery())
   const listo = !ciudadano.isPending && !enCurso.isPending
-  const registrado = ciudadano.data != null
+  const conSesion = ciudadano.data != null
 
   useEffect(() => {
     if (listo) {
@@ -110,7 +109,7 @@ function Pantallas() {
     <>
       {ciudadano.data ? <Avisos ciudadanoId={ciudadano.data.id} /> : null}
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={registrado}>
+        <Stack.Protected guard={conSesion}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="pedir-traslado" />
           <Stack.Screen name="traslado/[trasladoId]" />
@@ -119,8 +118,8 @@ function Pantallas() {
           <Stack.Screen name="demo/index" />
           <Stack.Screen name="demo/recorrido" />
         </Stack.Protected>
-        <Stack.Protected guard={!registrado}>
-          <Stack.Screen name="registro" />
+        <Stack.Protected guard={!conSesion}>
+          <Stack.Screen name="ingreso" />
         </Stack.Protected>
       </Stack>
     </>
