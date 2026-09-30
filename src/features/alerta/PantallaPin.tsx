@@ -6,7 +6,6 @@ import MapView, { type Region } from 'react-native-maps'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Paragraph, Spinner, Text, XStack, YStack, useTheme, useToastController } from 'tamagui'
 
-import type { SeguimientoGuardado } from '@/features/seguimiento/almacen'
 import { abrirSeguimiento } from '@/features/seguimiento/navegacion'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
@@ -41,10 +40,6 @@ function regionAlrededorDe({ latitud, longitud }: Coordenadas, delta: number): R
   return { latitude: latitud, longitude: longitud, latitudeDelta: delta, longitudeDelta: delta }
 }
 
-function irAlSeguimiento(seguimiento: SeguimientoGuardado) {
-  abrirSeguimiento(seguimiento, { reemplazar: true })
-}
-
 /**
  * PB-02 R2 y CA-02: sin GPS, el ciudadano mueve el mapa hasta dejar el pin donde está y la alerta sale con origen
  * MANUAL. Nunca se rechaza por falta de GPS. Aquí basta un toque: ya hubo intención y se perdieron varios segundos.
@@ -56,8 +51,9 @@ export function PantallaPin() {
   const esquema = useColorScheme() === 'dark' ? 'dark' : 'light'
   const tema = useTheme()
   const toast = useToastController()
+  // La alerta que sale desde aquí abre su seguimiento en lugar del pin y del inicio que queda debajo.
   const { enviar, empezarIntento, reintentar, enviando, esperandoConexion, rechazada } =
-    useEnviarAlerta(irAlSeguimiento)
+    useEnviarAlerta(abrirSeguimiento)
 
   const [regionInicial, setRegionInicial] = useState<Region | null>(null)
   const [centro, setCentro] = useState<Coordenadas | null>(null)

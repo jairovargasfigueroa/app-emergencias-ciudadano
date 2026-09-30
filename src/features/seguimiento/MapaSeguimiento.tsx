@@ -16,7 +16,7 @@ const DELTA_CALLE = 0.004
 type Props = {
   ubicacionCiudadano: Coordenadas | null
   unidades: UnidadSeguimiento[]
-  /** El incidente cerró: el mapa se queda, pero apagado (PB-06 R4). */
+  /** El incidente cerró o se retiró el pedido: el mapa se queda, pero apagado (PB-06 R4). */
   apagado: boolean
   /** Alto de la hoja de abajo, para que el encuadre no meta los puntos debajo de ella. */
   margenInferior: number

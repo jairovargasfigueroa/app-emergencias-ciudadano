@@ -33,7 +33,7 @@ export class ErrorApi extends Error {
 const URL_BASE = process.env.EXPO_PUBLIC_API_URL ?? ''
 
 type OpcionesPedido = {
-  metodo?: 'GET' | 'POST'
+  metodo?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   cuerpo?: unknown
   /** Solo para las rutas de `/auth`: son las únicas que se llaman sin sesión abierta. */
   sinToken?: boolean
@@ -90,6 +90,10 @@ export const api = {
   get: <T>(ruta: string, opciones?: Omit<OpcionesPedido, 'metodo' | 'cuerpo'>) => pedir<T>(ruta, opciones),
   post: <T>(ruta: string, cuerpo?: unknown, opciones?: Omit<OpcionesPedido, 'metodo' | 'cuerpo'>) =>
     pedir<T>(ruta, { ...opciones, metodo: 'POST', cuerpo }),
+  put: <T>(ruta: string, cuerpo?: unknown, opciones?: Omit<OpcionesPedido, 'metodo' | 'cuerpo'>) =>
+    pedir<T>(ruta, { ...opciones, metodo: 'PUT', cuerpo }),
+  borrar: <T>(ruta: string, opciones?: Omit<OpcionesPedido, 'metodo' | 'cuerpo'>) =>
+    pedir<T>(ruta, { ...opciones, metodo: 'DELETE' }),
 }
 
 /** Mensaje listo para mostrar a partir de cualquier error. */

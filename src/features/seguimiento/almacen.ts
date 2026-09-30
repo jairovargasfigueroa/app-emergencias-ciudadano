@@ -15,13 +15,11 @@ export type SeguimientoGuardado = {
   origen: OrigenUbicacion
   /** Los detalles opcionales ya salieron (PB-02 R3): al volver al caso no se preguntan ni se envían otra vez. */
   detallesEnviados?: boolean
-  /** El pedido ya se retiró: el caso sigue a la vista mientras una unidad decida, pero no se retira dos veces. */
-  pedidoRetirado?: boolean
 }
 
 /**
- * El seguimiento vive en el teléfono mientras el incidente esté abierto: si la app se cierra o el teléfono se apaga,
- * el ciudadano no pierde su caso.
+ * El seguimiento vive en el teléfono mientras el incidente esté abierto y el pedido siga en pie: si la app se cierra o
+ * el teléfono se apaga, el ciudadano no pierde su caso.
  */
 export async function leerSeguimientoGuardado(): Promise<SeguimientoGuardado | null> {
   const guardado = await SecureStore.getItemAsync(CLAVE_SEGUIMIENTO)
