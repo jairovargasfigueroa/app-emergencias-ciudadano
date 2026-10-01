@@ -12,16 +12,22 @@ import { useColorScheme } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TamaguiProvider, ToastProvider, ToastViewport } from 'tamagui'
 
+import { ciudadanoQuery, olvidarLaCuenta } from '@/features/acceso/queries'
+import { useRevisarSesionAlAbrir } from '@/features/acceso/useRevisarSesionAlAbrir'
 import { Avisos } from '@/features/notificaciones/Avisos'
-import { ciudadanoQuery } from '@/features/registro/queries'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
-import { queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
+import { alVencerLaSesion, queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
 import { ToastActual } from '@/shared/ui/ToastActual'
 import { tamaguiConfig } from '@/tamagui.config'
 import { coloresClaro, coloresOscuro } from '@/tema/colores'
 
 // Si el splash ya no se puede retener, la app sigue igual: no hay nada que hacer con el error.
 SplashScreen.preventAutoHideAsync().catch(() => {})
+
+// Si la sesión vence sola, se borra lo de esa cuenta igual que al cerrar sesión a mano.
+alVencerLaSesion(() => {
+  void olvidarLaCuenta(queryClient)
+})
 
 const navegacionClara: Theme = {
   ...DefaultTheme,
@@ -81,20 +87,21 @@ export default function LayoutRaiz() {
 }
 
 /**
- * PB-02 R1: sin registro ligero solo existe la pantalla de registro. Al registrarse, el guard cambia y el router
- * lleva solo a la pantalla del botón.
+ * Sin sesión solo existe la pantalla de ingreso, que sirve también para registrarse. Al entrar, el guard cambia y el
+ * router lleva solo a la pantalla del botón.
  *
  * PB-06: el caso guardado se lee antes de pintar nada. Si la app se cerró con un caso abierto, el inicio lo encuentra
  * al abrirse y lleva directo a su seguimiento; aquí no se navega, para que el seguimiento se abra una sola vez.
  *
- * Con registro corren además los avisos push, en cualquier pantalla: desde que termina el registro o la app arranca
- * con sesión.
+ * Con sesión corren además los avisos push, en cualquier pantalla: desde que se entra o la app arranca con sesión. Y si
+ * la app arranca con una sesión a la que le queda poco, se renueva por detrás.
  */
 function Pantallas() {
   const ciudadano = useQuery(ciudadanoQuery())
   const enCurso = useQuery(seguimientoEnCursoQuery())
   const listo = !ciudadano.isPending && !enCurso.isPending
-  const registrado = ciudadano.data != null
+  const conSesion = ciudadano.data != null
+  useRevisarSesionAlAbrir()
 
   useEffect(() => {
     if (listo) {
@@ -110,7 +117,7 @@ function Pantallas() {
     <>
       {ciudadano.data ? <Avisos ciudadanoId={ciudadano.data.id} /> : null}
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={registrado}>
+        <Stack.Protected guard={conSesion}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="pedir-traslado" />
           <Stack.Screen name="traslado/[trasladoId]" />
@@ -119,8 +126,8 @@ function Pantallas() {
           <Stack.Screen name="demo/index" />
           <Stack.Screen name="demo/recorrido" />
         </Stack.Protected>
-        <Stack.Protected guard={!registrado}>
-          <Stack.Screen name="registro" />
+        <Stack.Protected guard={!conSesion}>
+          <Stack.Screen name="ingreso" />
         </Stack.Protected>
       </Stack>
     </>

@@ -122,6 +122,39 @@ export async function actualizarTokenDelDispositivo(token: DevicePushToken) {
   }
 }
 
+/** Lo más que se espera al servidor al cerrar sesión: salir no puede quedar trabado por la conexión. */
+const ESPERA_MAXIMA_AL_SALIR_MS = 2000
+
+/**
+ * Al cerrar sesión, el teléfono deja de recibir los avisos de esta cuenta: puede quedar en manos de otra persona de la
+ * familia. Va antes de borrar la sesión, porque el servidor reconoce la cuenta por su token. Es de mejor esfuerzo: si
+ * falla o tarda más de un par de segundos, la sesión se cierra igual.
+ */
+export async function dejarDeRecibirAvisos() {
+  const cancelar = new AbortController()
+  const plazo = setTimeout(() => cancelar.abort(), ESPERA_MAXIMA_AL_SALIR_MS)
+  try {
+    await notificacionesApi.quitarDispositivo(cancelar.signal)
+  } catch {
+    // Sin conexión, sin respuesta a tiempo o una cuenta que el servidor ya no reconoce: se sale igual.
+  } finally {
+    clearTimeout(plazo)
+  }
+}
+
+/**
+ * Al cerrar sesión se quitan de la bandeja los avisos que ya llegaron: son de la alerta y de los traslados de esa
+ * cuenta, y quien use el teléfono después no tiene por qué verlos ni tocarlos.
+ */
+export async function quitarAvisosDeLaBandeja() {
+  const Notifications = await cargarNotificaciones()
+  try {
+    await Notifications?.dismissAllNotificationsAsync()
+  } catch {
+    // Si el sistema no los deja quitar, quedan en la bandeja: la sesión se cierra igual.
+  }
+}
+
 /** Los ids llegan en `data` como texto. */
 function idDe(valor: unknown): string | null {
   return typeof valor === 'string' || typeof valor === 'number' ? String(valor) : null

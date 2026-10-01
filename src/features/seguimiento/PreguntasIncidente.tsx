@@ -3,8 +3,8 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, Input, Paragraph, Spinner, Text, XStack, YStack, useTheme } from 'tamagui'
 
+import { ciudadanoQuery } from '@/features/acceso/queries'
 import { completarDetallesMutation } from '@/features/alerta/queries'
-import { ciudadanoQuery } from '@/features/registro/queries'
 import { ErrorApi } from '@/shared/api/cliente'
 
 import {
