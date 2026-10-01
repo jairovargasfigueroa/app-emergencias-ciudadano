@@ -12,17 +12,22 @@ import { useColorScheme } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { TamaguiProvider, ToastProvider, ToastViewport } from 'tamagui'
 
-import { ciudadanoQuery } from '@/features/acceso/queries'
+import { ciudadanoQuery, olvidarLaCuenta } from '@/features/acceso/queries'
 import { useRevisarSesionAlAbrir } from '@/features/acceso/useRevisarSesionAlAbrir'
 import { Avisos } from '@/features/notificaciones/Avisos'
 import { seguimientoEnCursoQuery } from '@/features/seguimiento/queries'
-import { queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
+import { alVencerLaSesion, queryClient, useFocoDeLaApp } from '@/shared/query/queryClient'
 import { ToastActual } from '@/shared/ui/ToastActual'
 import { tamaguiConfig } from '@/tamagui.config'
 import { coloresClaro, coloresOscuro } from '@/tema/colores'
 
 // Si el splash ya no se puede retener, la app sigue igual: no hay nada que hacer con el error.
 SplashScreen.preventAutoHideAsync().catch(() => {})
+
+// Si la sesión vence sola, se borra lo de esa cuenta igual que al cerrar sesión a mano.
+alVencerLaSesion(() => {
+  void olvidarLaCuenta(queryClient)
+})
 
 const navegacionClara: Theme = {
   ...DefaultTheme,
