@@ -19,14 +19,26 @@ function esErrorDefinitivo(error: unknown) {
   return error instanceof ErrorApi && error.status >= 400 && error.status < 500
 }
 
+let alVencer: (() => void) | null = null
+
+/**
+ * Lo que hay que borrar además de la sesión cuando el servidor deja de reconocerla: lo que la app guardaba de esa
+ * cuenta. Lo registra la feature que sabe qué es, así esta capa no depende de las pantallas.
+ */
+export function alVencerLaSesion(manejador: () => void) {
+  alVencer = manejador
+}
+
 /**
  * Un 401 es el token vencido o una sesión que el servidor ya no reconoce: se cierra acá, en un solo lugar, y el guard
- * del router devuelve a la pantalla de entrada.
+ * del router devuelve a la pantalla de entrada. Se borra lo mismo que al cerrar sesión a mano, porque el teléfono
+ * puede pasar a manos de otro y quien entre no tiene que ver nada de la cuenta anterior.
  */
 function alFallarPeticion(error: unknown) {
   if (error instanceof ErrorApi && error.status === 401) {
     queryClient.setQueryData(sesionKeys.actual, null)
     void borrarSesion()
+    alVencer?.()
   }
 }
 

@@ -103,7 +103,7 @@ export async function cerrarSesionDelCiudadano(queryClient: QueryClient) {
  * que la caché trajo del servidor, los envíos que esperaban señal, la verificación de Firebase y los avisos de la
  * bandeja. Queda lo que es del teléfono: el último número, para volver a entrar, y si ya se preguntó por los avisos.
  */
-async function olvidarLaCuenta(queryClient: QueryClient) {
+export async function olvidarLaCuenta(queryClient: QueryClient) {
   // Un envío que esperaba señal, como una alerta sin conexión, saldría después con la sesión de quien entre.
   queryClient.getMutationCache().clear()
   // De la caché queda el último número, con el que el ingreso aparece ya escrito. La sesión y el caso en curso no se
