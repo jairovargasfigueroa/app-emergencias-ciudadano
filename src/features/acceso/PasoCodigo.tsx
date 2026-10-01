@@ -1,11 +1,11 @@
 import { useForm } from '@tanstack/react-form'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button, H1, Paragraph, Spinner, Text, YStack } from 'tamagui'
 import { z } from 'zod'
 
 import { useAhora } from '@/shared/reloj/useAhora'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
-import { CajitasDeCodigo } from '@/shared/ui/CajitasDeCodigo'
+import { CajitasDeCodigo, type CajitasDeCodigoRef } from '@/shared/ui/CajitasDeCodigo'
 import { MensajeDeCampo, textoDeErrores } from '@/shared/ui/MensajeDeCampo'
 
 import { PREFIJO_PAIS } from './numero'
@@ -17,31 +17,47 @@ const esquema = z.object({
   codigo: z.string().regex(/^\d{6}$/, 'Escribe los 6 dígitos del código.'),
 })
 
+/**
+ * Cómo terminó un intento de confirmar el código. `rechazado`: el código está mal o venció, y hay que escribir otro.
+ * `fallido`: no se pudo confirmar por otra causa, como la conexión, y el mismo código se puede volver a intentar.
+ */
+export type ResultadoDelCodigo = 'verificado' | 'rechazado' | 'fallido'
+
 type Props = {
   numero: string
   /** Cuándo se mandó el último SMS, en milisegundos: de ahí corre la espera para pedir otro. */
   enviadoEn: number
   /** Lo que salió mal en el último intento, dicho para la persona. */
   aviso: string | null
-  onConfirmar: (codigo: string) => Promise<void>
+  onConfirmar: (codigo: string) => Promise<ResultadoDelCodigo>
   onReenviar: () => Promise<void>
   onCambiarNumero: () => void
 }
 
 /**
  * Segundo paso del ingreso: el código que llegó por SMS. Se confirma solo al escribir el sexto dígito, igual que con el
- * botón, que queda para reintentar. Si Android verifica el número por su cuenta, la pantalla de ingreso sigue sola y
- * este paso ni se completa.
+ * botón, que queda para reintentar cuando falla la conexión. Si Android verifica el número por su cuenta, la pantalla
+ * de ingreso sigue sola y este paso ni se completa.
  */
 export function PasoCodigo({ numero, enviadoEn, aviso, onConfirmar, onReenviar, onCambiarNumero }: Props) {
   const ahora = useAhora()
+  const cajitas = useRef<CajitasDeCodigoRef>(null)
   const [reenviando, setReenviando] = useState(false)
+  // El último código no sirvió: las cajitas siguen en rojo hasta que se empieza a escribir otro.
+  const [rechazado, setRechazado] = useState(false)
   const faltan = Math.max(0, ESPERA_PARA_REENVIAR_S - Math.floor((ahora - enviadoEn) / 1000))
 
   const form = useForm({
     defaultValues: { codigo: '' },
     validators: { onSubmit: esquema },
-    onSubmit: ({ value }) => onConfirmar(value.codigo),
+    onSubmit: async ({ value, formApi }) => {
+      if ((await onConfirmar(value.codigo)) === 'rechazado') {
+        // Ese código ya no sirve: las cajitas se vacían y el teclado se abre para escribir el siguiente.
+        formApi.reset()
+        setRechazado(true)
+        cajitas.current?.enfocar()
+      }
+    },
   })
 
   function confirmar() {
@@ -77,10 +93,14 @@ export function PasoCodigo({ numero, enviadoEn, aviso, onConfirmar, onReenviar, 
                 Código de 6 dígitos
               </Text>
               <CajitasDeCodigo
+                ref={cajitas}
                 valor={field.state.value}
-                onCambiar={field.handleChange}
+                onCambiar={(codigo) => {
+                  setRechazado(false)
+                  field.handleChange(codigo)
+                }}
                 onCompletar={confirmar}
-                error={errorDelCampo !== null}
+                error={rechazado || errorDelCampo !== null}
                 autoFocus
                 accessibilityLabel="Código de 6 dígitos"
               />

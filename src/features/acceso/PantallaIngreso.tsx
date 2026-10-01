@@ -11,12 +11,13 @@ import { MarcaSga } from '@/shared/ui/MarcaSga'
 import {
   cerrarVerificacion,
   enviarCodigo,
+  esCodigoRechazado,
   escucharVerificacion,
   idTokenDelNumero,
   mensajeDeFirebase,
   usuarioVerificado,
 } from './firebase'
-import { PasoCodigo } from './PasoCodigo'
+import { PasoCodigo, type ResultadoDelCodigo } from './PasoCodigo'
 import { PasoNombre, type DatosDePrimeraVez } from './PasoNombre'
 import { PasoNumero } from './PasoNumero'
 import { PasoVerificado } from './PasoVerificado'
@@ -70,7 +71,11 @@ export function PantallaIngreso() {
     }
   }
 
-  async function confirmarCodigo(numero: string, confirmacion: ConfirmationResult, codigo: string) {
+  async function confirmarCodigo(
+    numero: string,
+    confirmacion: ConfirmationResult,
+    codigo: string,
+  ): Promise<ResultadoDelCodigo> {
     const mio = intento.current
     setAviso(null)
     try {
@@ -81,12 +86,13 @@ export function PantallaIngreso() {
         if (mio === intento.current) {
           setAviso(mensajeDeFirebase(error))
         }
-        return
+        return esCodigoRechazado(error) ? 'rechazado' : 'fallido'
       }
     }
     if (mio === intento.current) {
       await alVerificarNumero(numero)
     }
+    return 'verificado'
   }
 
   /** El número quedó verificado, con el código o por Android: falta que el servidor abra la sesión. */
