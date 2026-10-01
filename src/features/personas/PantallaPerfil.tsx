@@ -1,9 +1,23 @@
+import Feather from '@expo/vector-icons/Feather'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, Form, H1, Input, Paragraph, Text, XStack, YStack, useToastController } from 'tamagui'
+import {
+  Button,
+  Form,
+  H1,
+  Input,
+  Paragraph,
+  Separator,
+  Text,
+  XStack,
+  YStack,
+  useTheme,
+  useToastController,
+} from 'tamagui'
 
+import { DialogoCerrarSesion } from '@/features/acceso/DialogoCerrarSesion'
 import { ciudadanoQuery } from '@/features/acceso/queries'
 import { mensajeDeError } from '@/shared/api/cliente'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
@@ -18,6 +32,7 @@ import { olvidarPersonaMutation, personasQuery, registrarPersonaMutation } from 
  */
 export function PantallaPerfil() {
   const margenes = useSafeAreaInsets()
+  const tema = useTheme()
   const queryClient = useQueryClient()
   const toast = useToastController()
   const ciudadano = useQuery(ciudadanoQuery()).data
@@ -28,6 +43,7 @@ export function PantallaPerfil() {
   const [telefono, setTelefono] = useState('')
   const [porQuitar, setPorQuitar] = useState<Persona | null>(null)
   const [quitando, setQuitando] = useState(false)
+  const [cerrandoSesion, setCerrandoSesion] = useState(false)
 
   function quitar() {
     if (!porQuitar) {
@@ -153,6 +169,21 @@ export function PantallaPerfil() {
               </BotonPrincipal>
             </XStack>
           </Form>
+
+          {/* Al final y con poco peso: se usa pocas veces y no tiene que competir con lo de arriba. */}
+          <YStack gap={8}>
+            <Separator borderColor="$borde" />
+            <Button
+              height={48}
+              chromeless
+              icon={<Feather name="log-out" size={18} color={tema.textoSecundario?.val} />}
+              onPress={() => setCerrandoSesion(true)}
+            >
+              <Button.Text color="$textoSecundario" fontSize={15} fontWeight="500">
+                Cerrar sesión
+              </Button.Text>
+            </Button>
+          </YStack>
         </YStack>
       </ScrollView>
 
@@ -163,6 +194,7 @@ export function PantallaPerfil() {
         onConfirmar={quitar}
         onCerrar={() => setQuitando(false)}
       />
+      <DialogoCerrarSesion abierto={cerrandoSesion} onCerrar={() => setCerrandoSesion(false)} />
     </>
   )
 }
