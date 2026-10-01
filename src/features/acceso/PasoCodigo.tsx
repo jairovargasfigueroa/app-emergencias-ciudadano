@@ -1,10 +1,11 @@
 import { useForm } from '@tanstack/react-form'
 import { useState } from 'react'
-import { Button, H1, Input, Label, Paragraph, Spinner, YStack } from 'tamagui'
+import { Button, H1, Paragraph, Spinner, Text, YStack } from 'tamagui'
 import { z } from 'zod'
 
 import { useAhora } from '@/shared/reloj/useAhora'
 import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
+import { CajitasDeCodigo } from '@/shared/ui/CajitasDeCodigo'
 import { MensajeDeCampo, textoDeErrores } from '@/shared/ui/MensajeDeCampo'
 
 import { PREFIJO_PAIS } from './numero'
@@ -28,8 +29,9 @@ type Props = {
 }
 
 /**
- * Segundo paso del ingreso: el código que llegó por SMS. Si Android verifica el número por su cuenta, la pantalla de
- * ingreso sigue sola y este paso ni se completa.
+ * Segundo paso del ingreso: el código que llegó por SMS. Se confirma solo al escribir el sexto dígito, igual que con el
+ * botón, que queda para reintentar. Si Android verifica el número por su cuenta, la pantalla de ingreso sigue sola y
+ * este paso ni se completa.
  */
 export function PasoCodigo({ numero, enviadoEn, aviso, onConfirmar, onReenviar, onCambiarNumero }: Props) {
   const ahora = useAhora()
@@ -41,6 +43,13 @@ export function PasoCodigo({ numero, enviadoEn, aviso, onConfirmar, onReenviar, 
     validators: { onSubmit: esquema },
     onSubmit: ({ value }) => onConfirmar(value.codigo),
   })
+
+  function confirmar() {
+    // Una confirmación a la vez: mientras sigue la anterior, el código se puede borrar y completar otra vez.
+    if (!form.state.isSubmitting) {
+      form.handleSubmit().catch(() => {})
+    }
+  }
 
   async function reenviar() {
     setReenviando(true)
@@ -60,33 +69,25 @@ export function PasoCodigo({ numero, enviadoEn, aviso, onConfirmar, onReenviar, 
       </YStack>
 
       <form.Field name="codigo">
-        {(field) => (
-          <YStack gap={8} mt={36}>
-            <Label htmlFor="codigo" color="$texto" fontSize={14} lineHeight={20} fontWeight="500">
-              Código de 6 dígitos
-            </Label>
-            <Input
-              id="codigo"
-              size="$5"
-              height={52}
-              rounded={12}
-              bg="$superficie"
-              borderColor={field.state.meta.isValid ? '$bordeFuerte' : '$primario'}
-              value={field.state.value}
-              onChangeText={(texto) => field.handleChange(texto.replace(/\D/g, ''))}
-              onBlur={field.handleBlur}
-              autoFocus
-              maxLength={6}
-              keyboardType="number-pad"
-              // Android ofrece el código del SMS en el teclado; iOS, arriba del teclado.
-              autoComplete="sms-otp"
-              textContentType="oneTimeCode"
-              returnKeyType="done"
-              onSubmitEditing={() => form.handleSubmit().catch(() => {})}
-            />
-            <MensajeDeCampo texto={textoDeErrores(field.state.meta.errors) ?? aviso} />
-          </YStack>
-        )}
+        {(field) => {
+          const errorDelCampo = textoDeErrores(field.state.meta.errors)
+          return (
+            <YStack gap={8} mt={36}>
+              <Text color="$texto" fontSize={14} lineHeight={20} fontWeight="500">
+                Código de 6 dígitos
+              </Text>
+              <CajitasDeCodigo
+                valor={field.state.value}
+                onCambiar={field.handleChange}
+                onCompletar={confirmar}
+                error={errorDelCampo !== null}
+                autoFocus
+                accessibilityLabel="Código de 6 dígitos"
+              />
+              <MensajeDeCampo texto={errorDelCampo ?? aviso} />
+            </YStack>
+          )
+        }}
       </form.Field>
 
       <form.Subscribe selector={(estado) => [estado.isSubmitting] as const}>
@@ -118,7 +119,7 @@ export function PasoCodigo({ numero, enviadoEn, aviso, onConfirmar, onReenviar, 
               disabled={confirmando || reenviando}
               opacity={confirmando || reenviando ? 0.7 : 1}
               icon={confirmando ? <Spinner color="$primarioTexto" /> : undefined}
-              onPress={() => form.handleSubmit().catch(() => {})}
+              onPress={confirmar}
             >
               <Button.Text color="$primarioTexto" fontSize={17} fontWeight="600">
                 Confirmar
