@@ -1,11 +1,13 @@
-import { mutationOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
+import { hashKey, mutationOptions, queryOptions, type QueryClient } from '@tanstack/react-query'
 
-import { dejarDeRecibirAvisos } from '@/features/notificaciones/notificaciones'
+import { dejarDeRecibirAvisos, quitarAvisosDeLaBandeja } from '@/features/notificaciones/notificaciones'
+import { olvidarSeguimiento, seguimientoKeys } from '@/features/seguimiento/queries'
 import { guardarSesion, type Sesion } from '@/shared/sesion/almacen'
 import { cerrarSesion, sesionKeys, sesionQuery } from '@/shared/sesion/queries'
 
 import { guardarUltimoNumero, leerUltimoNumero } from './almacen'
 import { accesoApi, type Ciudadano, type IngresoCiudadano } from './api'
+import { cerrarVerificacion } from './firebase'
 
 export const accesoKeys = {
   ultimoNumero: ['acceso', 'ultimo-numero'] as const,
@@ -82,10 +84,37 @@ export const renovarSesionMutation = (queryClient: QueryClient) =>
 
 /**
  * Cierra la sesión del ciudadano en este teléfono. Primero, mientras el token todavía sirve, el teléfono deja de recibir
- * los avisos de la cuenta; después se borra la sesión y la app vuelve a la pantalla de ingreso. El último número queda
- * recordado para volver a entrar.
+ * los avisos de la cuenta, con un tope de un par de segundos; después se borra la sesión y la app vuelve a la pantalla
+ * de ingreso. Al final se borra lo demás que el teléfono guardaba de la cuenta.
  */
 export async function cerrarSesionDelCiudadano(queryClient: QueryClient) {
   await dejarDeRecibirAvisos()
-  await cerrarSesion(queryClient)
+  try {
+    await cerrarSesion(queryClient)
+  } finally {
+    // Va después de cerrar la sesión, cuando las pantallas de adentro ya se están cerrando: si se borrara antes, alguna
+    // podría volver a pedir sus datos con el token todavía vigente.
+    await olvidarLaCuenta(queryClient)
+  }
+}
+
+/**
+ * Borra lo que el teléfono guardaba de la cuenta, porque puede quedar en manos de otra persona: el caso en curso, lo
+ * que la caché trajo del servidor, los envíos que esperaban señal, la verificación de Firebase y los avisos de la
+ * bandeja. Queda lo que es del teléfono: el último número, para volver a entrar, y si ya se preguntó por los avisos.
+ */
+async function olvidarLaCuenta(queryClient: QueryClient) {
+  // Un envío que esperaba señal, como una alerta sin conexión, saldría después con la sesión de quien entre.
+  queryClient.getMutationCache().clear()
+  // De la caché queda el último número, con el que el ingreso aparece ya escrito. La sesión y el caso en curso no se
+  // quitan sino que quedan en null: el layout los mira siempre y, sin ellos, los volvería a leer con la pantalla en
+  // blanco.
+  const quedan = [accesoKeys.ultimoNumero, sesionKeys.actual, seguimientoKeys.enCurso].map((clave) => hashKey(clave))
+  queryClient.removeQueries({ predicate: (consulta) => !quedan.includes(consulta.queryHash) })
+  await Promise.all([
+    // Si el almacén falla, lo demás se borra igual.
+    olvidarSeguimiento(queryClient).catch(() => {}),
+    cerrarVerificacion(),
+    quitarAvisosDeLaBandeja(),
+  ])
 }
