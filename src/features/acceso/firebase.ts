@@ -68,11 +68,24 @@ const MENSAJES_DE_FIREBASE: Record<string, string> = {
   'auth/invalid-phone-number': 'Ese número no es válido. Revisa que sean los 8 dígitos de tu celular.',
 }
 
+/** El código de un error de Firebase, como `auth/invalid-verification-code`, o `null` si no es de Firebase. */
+function codigoDeError(error: unknown): string | null {
+  return typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : null
+}
+
 /** Mensaje listo para mostrar a partir de un error de Firebase al verificar el número. */
 export function mensajeDeFirebase(error: unknown): string {
-  const codigo =
-    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
-      ? error.code
-      : null
+  const codigo = codigoDeError(error)
   return (codigo ? MENSAJES_DE_FIREBASE[codigo] : undefined) ?? 'No se pudo verificar tu número. Inténtalo de nuevo.'
+}
+
+/**
+ * Si el código escrito no sirve, porque está mal o porque venció: hay que escribir otro. Con cualquier otro error, como
+ * la falta de conexión, el mismo código se puede volver a intentar.
+ */
+export function esCodigoRechazado(error: unknown): boolean {
+  const codigo = codigoDeError(error)
+  return codigo === 'auth/invalid-verification-code' || codigo === 'auth/session-expired'
 }
