@@ -142,6 +142,19 @@ export async function dejarDeRecibirAvisos() {
   }
 }
 
+/**
+ * Al cerrar sesión se quitan de la bandeja los avisos que ya llegaron: son de la alerta y de los traslados de esa
+ * cuenta, y quien use el teléfono después no tiene por qué verlos ni tocarlos.
+ */
+export async function quitarAvisosDeLaBandeja() {
+  const Notifications = await cargarNotificaciones()
+  try {
+    await Notifications?.dismissAllNotificationsAsync()
+  } catch {
+    // Si el sistema no los deja quitar, quedan en la bandeja: la sesión se cierra igual.
+  }
+}
+
 /** Los ids llegan en `data` como texto. */
 function idDe(valor: unknown): string | null {
   return typeof valor === 'string' || typeof valor === 'number' ? String(valor) : null
