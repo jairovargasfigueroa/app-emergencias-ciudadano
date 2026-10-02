@@ -36,12 +36,19 @@ const SIN_EVIDENCIAS: readonly EvidenciaLocal[] = []
  * cambie de contenido o se desmonte la sección. Se pierden si se cierra la app, igual que el archivo a medio subir.
  */
 let porAlerta: Record<number, readonly EvidenciaLocal[]> = {}
+/** Alertas cuya emergencia ya no recibe más archivos: el servidor lo avisó al intentar registrar uno. */
+let incidentesCompletos: ReadonlySet<number> = new Set()
 const controladores = new Map<string, AbortController>()
 const oyentes = new Set<() => void>()
 
 /** Las evidencias de una alerta, en el orden en que se adjuntaron. */
 export function useEvidencias(alertaId: number) {
   return useSyncExternalStore(suscribir, () => porAlerta[alertaId] ?? SIN_EVIDENCIAS)
+}
+
+/** Si la emergencia de esta alerta ya juntó todos los archivos que recibe: no se ofrecen más adjuntos. */
+export function useIncidenteCompleto(alertaId: number) {
+  return useSyncExternalStore(suscribir, () => incidentesCompletos.has(alertaId))
 }
 
 /**
@@ -57,7 +64,7 @@ export function lugaresLibres(evidencias: readonly EvidenciaLocal[]) {
 
 /** Agrega el archivo a la lista y empieza a subirlo. Devuelve `false` si ya no hay lugar. */
 export function adjuntar(alertaId: number, archivo: ArchivoDeEvidencia) {
-  if (lugaresLibres(porAlerta[alertaId] ?? SIN_EVIDENCIAS) === 0) {
+  if (incidentesCompletos.has(alertaId) || lugaresLibres(porAlerta[alertaId] ?? SIN_EVIDENCIAS) === 0) {
     return false
   }
   const evidencia: EvidenciaLocal = {
@@ -101,6 +108,9 @@ export function olvidarEvidencias(alertaId: number) {
   const resto = { ...porAlerta }
   delete resto[alertaId]
   porAlerta = resto
+  if (incidentesCompletos.has(alertaId)) {
+    incidentesCompletos = new Set([...incidentesCompletos].filter((otra) => otra !== alertaId))
+  }
   oyentes.forEach((oyente) => oyente())
 }
 
@@ -146,6 +156,9 @@ async function procesar(alertaId: number, clave: string) {
           await pausa(ESPERAS_MS[intento], signal)
           continue
         }
+        if (fallo.incidenteCompleto) {
+          marcarIncidenteCompleto(alertaId)
+        }
         actualizar(alertaId, clave, { estado: 'fallo', error: fallo.message, reintentable: fallo.reintentable })
         return
       }
@@ -182,6 +195,13 @@ function pausa(ms: number, signal: AbortSignal) {
     }
     signal.addEventListener('abort', alCancelar)
   })
+}
+
+/** Queda marcada aunque se quite de la lista el archivo rechazado: la emergencia sigue sin recibir más. */
+function marcarIncidenteCompleto(alertaId: number) {
+  if (!incidentesCompletos.has(alertaId)) {
+    incidentesCompletos = new Set([...incidentesCompletos, alertaId])
+  }
 }
 
 function buscar(alertaId: number, clave: string) {
