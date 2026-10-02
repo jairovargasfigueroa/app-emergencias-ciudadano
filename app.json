@@ -48,6 +48,21 @@
           "color": "#D92D20",
           "defaultChannel": "avisos"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SGA Ciudadano usa tus fotos solo si eliges una para mostrar a la ambulancia lo que pasa.",
+          "cameraPermission": "SGA Ciudadano usa la cámara para que tomes una foto o un video de la emergencia.",
+          "microphonePermission": "SGA Ciudadano usa el micrófono para grabar el sonido del video de la emergencia."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "SGA Ciudadano usa el micrófono para que grabes un audio contando lo que pasa.",
+          "enableBackgroundPlayback": false
+        }
       ]
     ],
     "experiments": {
