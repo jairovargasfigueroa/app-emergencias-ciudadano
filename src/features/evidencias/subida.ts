@@ -8,6 +8,16 @@ import { describirArchivo, type ArchivoDeEvidencia } from './archivo'
 import { errorDeCancelacion, esCancelacion } from './conexion'
 import { MAXIMO_POR_ALERTA } from './formatos'
 
+/** Mensaje para cuando la emergencia ya juntó todos los archivos que el servidor recibe, entre todas sus alertas. */
+export const MENSAJE_INCIDENTE_COMPLETO = 'Ya llegaron suficientes archivos de esta emergencia. Tu alerta sigue activa.'
+
+type OpcionesError = {
+  reintentable: boolean
+  automatico?: boolean
+  /** La emergencia ya no recibe más archivos: no tiene sentido ofrecer otro adjunto. */
+  incidenteCompleto?: boolean
+}
+
 /**
  * Por qué no se pudo subir, con el mensaje listo para mostrar. `reintentable` dice si tiene sentido ofrecer
  * "Reintentar"; `automatico`, si conviene reintentar solo, sin que la persona haga nada (un corte de red, un 5xx).
@@ -15,12 +25,14 @@ import { MAXIMO_POR_ALERTA } from './formatos'
 export class ErrorSubida extends Error {
   readonly reintentable: boolean
   readonly automatico: boolean
+  readonly incidenteCompleto: boolean
 
-  constructor(mensaje: string, { reintentable, automatico = false }: { reintentable: boolean; automatico?: boolean }) {
+  constructor(mensaje: string, { reintentable, automatico = false, incidenteCompleto = false }: OpcionesError) {
     super(mensaje)
     this.name = 'ErrorSubida'
     this.reintentable = reintentable
     this.automatico = reintentable && automatico
+    this.incidenteCompleto = incidenteCompleto
   }
 }
 
@@ -157,6 +169,9 @@ function traducirError(error: unknown): ErrorSubida {
       return new ErrorSubida(`Ya enviaste ${MAXIMO_POR_ALERTA} archivos, el máximo para una alerta.`, {
         reintentable: false,
       })
+    case 'LIMITE_DE_EVIDENCIAS_INCIDENTE':
+      // Entre todas las alertas de la emergencia ya hay archivos de sobra: no es un error de la persona ni se reintenta.
+      return new ErrorSubida(MENSAJE_INCIDENTE_COMPLETO, { reintentable: false, incidenteCompleto: true })
     case 'ALERTA_CERRADA':
       return new ErrorSubida('Tu caso ya se cerró, así que no hace falta enviar más archivos.', { reintentable: false })
     case 'FORMATO_NO_ADMITIDO':
