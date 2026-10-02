@@ -14,7 +14,7 @@ const MIB = 1024 * 1024
 /** Límites por modalidad, iguales a los del servidor. */
 export const LIMITE_BYTES: Record<Modalidad, number> = {
   IMAGEN: 10 * MIB,
-  AUDIO: 20 * MIB,
+  AUDIO: 5 * MIB,
   VIDEO: 20 * MIB,
 }
 
