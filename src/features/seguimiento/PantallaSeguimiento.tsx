@@ -10,6 +10,7 @@ import { retirarPedidoMutation } from '@/features/alerta/queries'
 import type { Coordenadas } from '@/features/alerta/ubicacion'
 import { BotonDemo } from '@/features/demo/BotonDemo'
 import { DEMO } from '@/features/demo/bandera'
+import { olvidarEvidencias } from '@/features/evidencias/cola'
 import { mensajeDeError } from '@/shared/api/cliente'
 import { useAhora } from '@/shared/reloj/useAhora'
 
@@ -19,6 +20,7 @@ import { HojaConcluida } from './HojaConcluida'
 import { HojaPedidoRetirado } from './HojaPedidoRetirado'
 import { HojaUnidades } from './HojaUnidades'
 import { MapaSeguimiento } from './MapaSeguimiento'
+import { PasoEvidencias } from './PasoEvidencias'
 import { PreguntasIncidente } from './PreguntasIncidente'
 import { olvidarSeguimiento } from './queries'
 import { useSeguimiento } from './useSeguimiento'
@@ -73,6 +75,8 @@ export function PantallaSeguimiento() {
   // dato de Firebase eso todavía no se sabe, así que no se pregunta.
   const aunSeAceptanDetalles = vista.tipo === 'buscando' || (vista.tipo === 'acudiendo' && vista.etapa === 'EN_CAMINO')
   const puedePreguntar = !cargando && aunSeAceptanDetalles && Number.isFinite(alertaId) && alertaId > 0
+  // Las evidencias se aceptan mientras el caso siga abierto, también con la unidad ya en el lugar.
+  const puedeMostrar = !cargando && (vista.tipo === 'buscando' || vista.tipo === 'acudiendo') && alertaId > 0
   const altos = ALTOS_DE_HOJA[vista.tipo]
 
   // El pedido se retira mientras ninguna unidad haya llegado al lugar: desde ahí lo resuelve quien está allí.
@@ -99,6 +103,13 @@ export function PantallaSeguimiento() {
       void olvidarSeguimiento(queryClient)
     }
   }, [concluido, queryClient])
+
+  useEffect(() => {
+    // Con el caso cerrado el servidor ya no acepta archivos: lo que siga subiendo se corta en vez de fallar.
+    if (concluido || retirado) {
+      olvidarEvidencias(alertaId)
+    }
+  }, [concluido, retirado, alertaId])
 
   return (
     <YStack flex={1} bg="$fondo">
@@ -161,6 +172,7 @@ export function PantallaSeguimiento() {
               )}
               {/* Las preguntas conservan su sitio en el árbol: al aparecer unidades no se pierde lo contestado. */}
               {puedePreguntar ? <PreguntasIncidente alertaId={alertaId} /> : null}
+              {puedeMostrar ? <PasoEvidencias alertaId={alertaId} /> : null}
 
               {/* Retirar el pedido no corta el viaje de nadie: si hay unidad en camino, ella decide. */}
               {puedeRetirar ? (
