@@ -4,8 +4,16 @@ import { Button, Paragraph, Spinner, Text, XStack, YStack, useTheme } from 'tama
 
 import { ErrorCaptura, type ArchivoDeEvidencia } from '@/features/evidencias/archivo'
 import { elegirDeGaleria, grabarVideo, tomarFoto } from '@/features/evidencias/captura'
-import { adjuntar, lugaresLibres, quitar, reintentar, useEvidencias } from '@/features/evidencias/cola'
+import {
+  adjuntar,
+  lugaresLibres,
+  quitar,
+  reintentar,
+  useEvidencias,
+  useIncidenteCompleto,
+} from '@/features/evidencias/cola'
 import { MAXIMO_POR_ALERTA } from '@/features/evidencias/formatos'
+import { MENSAJE_INCIDENTE_COMPLETO } from '@/features/evidencias/subida'
 
 import { FilaEvidencia } from './FilaEvidencia'
 import { GrabadoraAudio } from './GrabadoraAudio'
@@ -36,12 +44,18 @@ export function PasoEvidencias({ alertaId }: { alertaId: number }) {
   const [preparando, setPreparando] = useState<Opcion | null>(null)
   const [grabandoAudio, setGrabandoAudio] = useState(false)
   const [aviso, setAviso] = useState<string | null>(null)
-  const libres = lugaresLibres(evidencias)
+  const incidenteCompleto = useIncidenteCompleto(alertaId)
+  // La emergencia completa también cierra los adjuntos, aunque a esta alerta le queden lugares.
+  const libres = incidenteCompleto ? 0 : lugaresLibres(evidencias)
   const ocupado = preparando !== null || grabandoAudio
 
   function enviar(archivo: ArchivoDeEvidencia) {
     if (!adjuntar(alertaId, archivo)) {
-      setAviso(`Ya adjuntaste ${MAXIMO_POR_ALERTA} archivos, el máximo para una alerta.`)
+      setAviso(
+        incidenteCompleto
+          ? MENSAJE_INCIDENTE_COMPLETO
+          : `Ya adjuntaste ${MAXIMO_POR_ALERTA} archivos, el máximo para una alerta.`,
+      )
     }
   }
 
@@ -114,6 +128,10 @@ export function PasoEvidencias({ alertaId }: { alertaId: number }) {
               </XStack>
             ))}
           </YStack>
+        ) : incidenteCompleto ? (
+          <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
+            {`${MENSAJE_INCIDENTE_COMPLETO} Gracias.`}
+          </Paragraph>
         ) : (
           <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
             {`Ya adjuntaste ${MAXIMO_POR_ALERTA} archivos, el máximo para una alerta. Gracias.`}
