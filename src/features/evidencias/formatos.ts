@@ -21,7 +21,8 @@ export const LIMITE_BYTES: Record<Modalidad, number> = {
 /** Un minuto de video a calidad media entra holgado en el límite. */
 export const DURACION_MAXIMA_VIDEO_S = 60
 
-export const DURACION_MAXIMA_AUDIO_S = 300
+/** Dos minutos de voz alcanzan para contar lo que pasa y entran de sobra en el límite del audio. */
+export const DURACION_MAXIMA_AUDIO_S = 120
 
 /** Lado mayor de la foto ya preparada: alcanza para ver una herida o una placa y pesa poco. */
 export const LADO_MAYOR_FOTO = 1600
