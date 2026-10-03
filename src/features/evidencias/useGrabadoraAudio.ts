@@ -11,7 +11,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { describirArchivo, ErrorCaptura, type ArchivoDeEvidencia } from './archivo'
 import { DURACION_MAXIMA_AUDIO_S } from './formatos'
 
-/** M4A (AAC en MPEG-4) en mono: es voz, y así cinco minutos pesan unos 2,5 MB. */
+/** M4A (AAC en MPEG-4) en mono: es voz, y así dos minutos pesan alrededor de 1 MB. */
 const OPCIONES: RecordingOptions = {
   ...RecordingPresets.HIGH_QUALITY,
   numberOfChannels: 1,
@@ -24,7 +24,7 @@ type Manejadores = {
 }
 
 /**
- * Grabadora de un audio de hasta cinco minutos. Se corta sola al llegar al máximo; lo grabado se entrega igual,
+ * Grabadora de un audio de hasta dos minutos. Se corta sola al llegar al máximo; lo grabado se entrega igual,
  * listo para subir, como si la persona hubiera tocado "Detener".
  */
 export function useGrabadoraAudio({ alTerminar, alFallar }: Manejadores) {

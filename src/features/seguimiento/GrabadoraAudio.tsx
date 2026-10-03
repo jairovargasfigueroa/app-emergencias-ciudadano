@@ -22,7 +22,7 @@ type Props = {
 
 /**
  * Grabación de un audio: empieza sola al abrirse, muestra cuánto lleva y cuánto queda, y un botón grande para
- * terminar. Al llegar a los cinco minutos se corta y se envía lo grabado.
+ * terminar. Al llegar a los dos minutos se corta y se envía lo grabado.
  */
 export function GrabadoraAudio({ onListo, onError, onCerrar }: Props) {
   const tema = useTheme()
@@ -44,7 +44,7 @@ export function GrabadoraAudio({ onListo, onError, onCerrar }: Props) {
     return () => alCerrar()
   }, [])
 
-  // Si deja de grabar después de haber empezado, se está guardando: también pasa con el corte a los cinco minutos.
+  // Si deja de grabar después de haber empezado, se está guardando: también pasa con el corte a los dos minutos.
   const etapa = guardando
     ? 'guardando'
     : grabadora.grabando
