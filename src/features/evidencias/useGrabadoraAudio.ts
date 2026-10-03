@@ -78,8 +78,13 @@ export function useGrabadoraAudio({ alTerminar, alFallar }: Manejadores) {
   /** Corta sin entregar nada: la persona se arrepintió. */
   async function descartar() {
     terminando.current = true
-    if (grabadora.isRecording) {
-      await grabadora.stop().catch(() => {})
+    // Al cerrar el panel, la grabadora nativa puede estar liberada: tocarla tira error y ya no queda nada que cortar.
+    try {
+      if (grabadora.isRecording) {
+        await grabadora.stop()
+      }
+    } catch {
+      // Ya liberada o detenida.
     }
     await soltarMicrofono()
   }
