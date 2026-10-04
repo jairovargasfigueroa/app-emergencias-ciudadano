@@ -18,6 +18,7 @@ import { BotonPrincipal } from '@/shared/ui/BotonPrincipal'
 
 import { FilaEvidencia } from './FilaEvidencia'
 import { GrabadoraAudio } from './GrabadoraAudio'
+import { NotaUsoDeDatos } from './NotaUsoDeDatos'
 
 type Opcion = 'audio' | 'foto' | 'galeria'
 
@@ -145,6 +146,7 @@ export function PasoEvidencias({ alertaId }: { alertaId: number }) {
                 onPress={() => void elegir('galeria')}
               />
             ) : null}
+            <NotaUsoDeDatos />
           </YStack>
         ) : incidenteCompleto ? (
           <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
