@@ -68,7 +68,8 @@ export function GrabadoraAudio({ onListo, onError, onCerrar }: Props) {
           {reloj(grabadora.segundos)}
         </Text>
         <Text color="$textoSecundario" fontSize={14} lineHeight={20}>
-          {`Habla con calma y cuenta lo que pasa. Puedes grabar hasta ${reloj(DURACION_MAXIMA_AUDIO_S)}.`}
+          {'Cuenta qué pasó, cuántas personas hay y cómo están. '}
+          {`Puedes grabar hasta ${reloj(DURACION_MAXIMA_AUDIO_S)}.`}
         </Text>
       </YStack>
 

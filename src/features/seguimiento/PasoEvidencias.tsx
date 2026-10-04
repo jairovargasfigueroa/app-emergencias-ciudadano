@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather'
 import { useState } from 'react'
-import { Button, Paragraph, Spinner, Text, YStack, useTheme } from 'tamagui'
+import { Button, Paragraph, Spinner, Text, XStack, YStack, useTheme } from 'tamagui'
 
 import { ErrorCaptura, type ArchivoDeEvidencia } from '@/features/evidencias/archivo'
 import { elegirDeGaleria, tomarFoto } from '@/features/evidencias/captura'
@@ -29,8 +29,8 @@ const CAPTURAS: Record<Exclude<Opcion, 'audio'>, () => Promise<ArchivoDeEvidenci
 
 /**
  * La galería solo existe en pruebas (B3): una foto guardada puede ser vieja o de otro lugar, y facilita fingir una
- * emergencia. En producción la evidencia se captura en el momento. Para probarla en un build de producción, se compila
- * con `EXPO_PUBLIC_PERMITIR_GALERIA=true` en `.env.local`.
+ * emergencia. En producción la evidencia se captura en el momento. Para probarla en un build de producción, se
+ * compila con `EXPO_PUBLIC_PERMITIR_GALERIA=true` en `.env.local`.
  */
 const PERMITIR_GALERIA = __DEV__ || process.env.EXPO_PUBLIC_PERMITIR_GALERIA === 'true'
 
@@ -39,6 +39,7 @@ const PERMITIR_GALERIA = __DEV__ || process.env.EXPO_PUBLIC_PERMITIR_GALERIA ===
  * esto la frena: cada archivo se envía por su lado, con su avance, y si se corta la señal sigue cuando vuelve.
  */
 export function PasoEvidencias({ alertaId }: { alertaId: number }) {
+  const tema = useTheme()
   const evidencias = useEvidencias(alertaId)
   const [preparando, setPreparando] = useState<Opcion | null>(null)
   const [grabandoAudio, setGrabandoAudio] = useState(false)
@@ -98,6 +99,13 @@ export function PasoEvidencias({ alertaId }: { alertaId: number }) {
           <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
             Un audio o una foto ayudan a que lleguen preparados. Tu alerta ya salió.
           </Paragraph>
+          {/* Antes que cualquier botón: nadie tiene que acercarse a un peligro para mandar una foto. */}
+          <XStack items="center" gap={8} pt={6}>
+            <Feather name="alert-triangle" size={16} color={tema.enAtencionTexto?.val} />
+            <Text color="$texto" fontSize={15} lineHeight={20} fontWeight="600">
+              Solo si es seguro para ti.
+            </Text>
+          </XStack>
         </YStack>
 
         {grabandoAudio ? (
@@ -111,11 +119,12 @@ export function PasoEvidencias({ alertaId }: { alertaId: number }) {
           />
         ) : libres > 0 ? (
           // El audio va primero y en grande: contar lo que pasa es lo que más ayuda, como en una llamada. La foto
-          // muestra el lugar. Los dos a todo el ancho, fáciles de acertar con prisa.
-          <YStack gap={8}>
+          // muestra el lugar. Los dos a todo el ancho, fáciles de acertar con prisa, y con lo que conviene mandar.
+          <YStack gap={12}>
             <BotonOpcion
               principal
               texto="Enviar audio"
+              guia="Cuenta qué pasó, cuántas personas hay y cómo están."
               icono="mic"
               preparando={false}
               apagado={ocupado}
@@ -123,6 +132,7 @@ export function PasoEvidencias({ alertaId }: { alertaId: number }) {
             />
             <BotonOpcion
               texto="Tomar foto"
+              guia="Una foto de la persona herida y del lugar."
               icono="camera"
               preparando={preparando === 'foto'}
               apagado={ocupado && preparando !== 'foto'}
@@ -176,6 +186,8 @@ export function PasoEvidencias({ alertaId }: { alertaId: number }) {
 
 type PropsBotonOpcion = {
   texto: string
+  /** Qué conviene mandar, debajo del botón: quien atiende necesita eso, no cualquier cosa. */
+  guia: string
   icono: 'mic' | 'camera'
   /** La acción que más ayuda: roja y más alta, para que sea la primera que se ve. */
   principal?: boolean
@@ -186,42 +198,50 @@ type PropsBotonOpcion = {
   onPress: () => void
 }
 
-function BotonOpcion({ texto, icono, principal = false, preparando, apagado, onPress }: PropsBotonOpcion) {
+function BotonOpcion({ texto, guia, icono, principal = false, preparando, apagado, onPress }: PropsBotonOpcion) {
   const tema = useTheme()
   const Boton = principal ? BotonPrincipal : Button
   const colorTexto = principal ? '$primarioTexto' : '$texto'
+  const colorIcono = (principal ? tema.primarioTexto : tema.texto)?.val
 
   return (
-    <Boton
-      height={principal ? 72 : 60}
-      px={16}
-      rounded={14}
-      borderWidth={principal ? 0 : 1}
-      borderColor="$borde"
-      bg={principal ? '$primario' : '$fondo'}
-      pressStyle={{ bg: principal ? '$primarioPresionado' : '$borde' }}
-      disabled={preparando || apagado}
-      opacity={apagado ? 0.45 : 1}
-      icon={
-        preparando ? (
-          <Spinner color={colorTexto} />
-        ) : (
-          <Feather name={icono} size={principal ? 24 : 20} color={(principal ? tema.primarioTexto : tema.texto)?.val} />
-        )
-      }
-      aria-busy={preparando}
-      aria-label={texto}
-      onPress={onPress}
-    >
-      <Button.Text color={colorTexto} fontSize={principal ? 18 : 16} fontWeight="600" numberOfLines={2}>
-        {preparando ? 'Preparando…' : texto}
-      </Button.Text>
-    </Boton>
+    <YStack gap={6}>
+      <Boton
+        height={principal ? 72 : 60}
+        px={16}
+        rounded={14}
+        borderWidth={principal ? 0 : 1}
+        borderColor="$borde"
+        bg={principal ? '$primario' : '$fondo'}
+        pressStyle={{ bg: principal ? '$primarioPresionado' : '$borde' }}
+        disabled={preparando || apagado}
+        opacity={apagado ? 0.45 : 1}
+        icon={
+          preparando ? (
+            <Spinner color={colorTexto} />
+          ) : (
+            <Feather name={icono} size={principal ? 24 : 20} color={colorIcono} />
+          )
+        }
+        aria-busy={preparando}
+        aria-label={texto}
+        onPress={onPress}
+      >
+        <Button.Text color={colorTexto} fontSize={principal ? 18 : 16} fontWeight="600" numberOfLines={2}>
+          {preparando ? 'Preparando…' : texto}
+        </Button.Text>
+      </Boton>
+      <Text color="$textoSecundario" fontSize={13} lineHeight={18} px={4}>
+        {guia}
+      </Text>
+    </YStack>
   )
 }
 
 /** Una foto ya guardada, solo en pruebas: acción chica, debajo de las que capturan en el momento. */
-function BotonGaleria({ preparando, apagado, onPress }: Omit<PropsBotonOpcion, 'texto' | 'icono' | 'principal'>) {
+type PropsBotonGaleria = Pick<PropsBotonOpcion, 'preparando' | 'apagado' | 'onPress'>
+
+function BotonGaleria({ preparando, apagado, onPress }: PropsBotonGaleria) {
   const tema = useTheme()
 
   return (
