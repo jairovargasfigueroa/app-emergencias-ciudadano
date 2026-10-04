@@ -35,7 +35,7 @@ export function GrabadoraAudio({ onListo, onError, onCerrar }: Props) {
     },
   })
 
-  // Se abre porque la persona tocó "Grabar audio": no se le pide un segundo toque para empezar. Si se cierra a medio
+  // Se abre porque la persona tocó "Enviar audio": no se le pide un segundo toque para empezar. Si se cierra a medio
   // grabar, lo grabado se descarta.
   const alAbrir = useEffectEvent(() => void grabadora.empezar())
   const alCerrar = useEffectEvent(() => void grabadora.descartar())
