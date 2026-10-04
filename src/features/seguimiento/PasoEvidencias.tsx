@@ -28,6 +28,13 @@ const CAPTURAS: Record<Exclude<Opcion, 'audio'>, () => Promise<ArchivoDeEvidenci
 }
 
 /**
+ * La galería solo existe en pruebas (B3): una foto guardada puede ser vieja o de otro lugar, y facilita fingir una
+ * emergencia. En producción la evidencia se captura en el momento. Para probarla en un build de producción, se compila
+ * con `EXPO_PUBLIC_PERMITIR_GALERIA=true` en `.env.local`.
+ */
+const PERMITIR_GALERIA = __DEV__ || process.env.EXPO_PUBLIC_PERMITIR_GALERIA === 'true'
+
+/**
  * "Mostrar lo que pasa": un audio o una foto para quien atiende, todo opcional. La alerta ya salió y nada de
  * esto la frena: cada archivo se envía por su lado, con su avance, y si se corta la señal sigue cuando vuelve.
  */
@@ -121,11 +128,13 @@ export function PasoEvidencias({ alertaId }: { alertaId: number }) {
               apagado={ocupado && preparando !== 'foto'}
               onPress={() => void elegir('foto')}
             />
-            <BotonGaleria
-              preparando={preparando === 'galeria'}
-              apagado={ocupado && preparando !== 'galeria'}
-              onPress={() => void elegir('galeria')}
-            />
+            {PERMITIR_GALERIA ? (
+              <BotonGaleria
+                preparando={preparando === 'galeria'}
+                apagado={ocupado && preparando !== 'galeria'}
+                onPress={() => void elegir('galeria')}
+              />
+            ) : null}
           </YStack>
         ) : incidenteCompleto ? (
           <Paragraph color="$textoSecundario" fontSize={14} lineHeight={20}>
@@ -211,7 +220,7 @@ function BotonOpcion({ texto, icono, principal = false, preparando, apagado, onP
   )
 }
 
-/** Una foto ya guardada: acción chica, debajo de las que capturan en el momento. */
+/** Una foto ya guardada, solo en pruebas: acción chica, debajo de las que capturan en el momento. */
 function BotonGaleria({ preparando, apagado, onPress }: Omit<PropsBotonOpcion, 'texto' | 'icono' | 'principal'>) {
   const tema = useTheme()
 
