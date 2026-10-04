@@ -35,15 +35,13 @@ export async function grabarVideo(): Promise<ArchivoDeEvidencia | null> {
   return asset ? prepararVideo(asset) : null
 }
 
-/** El selector del sistema no pide permiso de galería: la persona elige un archivo y la app solo ve ese. */
+/**
+ * El selector del sistema no pide permiso de galería: la persona elige un archivo y la app solo ve ese. Solo fotos: el
+ * video queda fuera por ahora (B2).
+ */
 export async function elegirDeGaleria(): Promise<ArchivoDeEvidencia | null> {
-  const asset = primerAsset(
-    await launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1, exif: false }),
-  )
-  if (!asset) {
-    return null
-  }
-  return asset.type === 'video' ? prepararVideo(asset) : prepararFoto(asset)
+  const asset = primerAsset(await launchImageLibraryAsync({ mediaTypes: 'images', quality: 1, exif: false }))
+  return asset ? prepararFoto(asset) : null
 }
 
 /**
