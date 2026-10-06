@@ -35,7 +35,7 @@ export function GrabadoraAudio({ onListo, onError, onCerrar }: Props) {
     },
   })
 
-  // Se abre porque la persona tocó "Grabar audio": no se le pide un segundo toque para empezar. Si se cierra a medio
+  // Se abre porque la persona tocó "Enviar audio": no se le pide un segundo toque para empezar. Si se cierra a medio
   // grabar, lo grabado se descarta.
   const alAbrir = useEffectEvent(() => void grabadora.empezar())
   const alCerrar = useEffectEvent(() => void grabadora.descartar())
@@ -68,7 +68,8 @@ export function GrabadoraAudio({ onListo, onError, onCerrar }: Props) {
           {reloj(grabadora.segundos)}
         </Text>
         <Text color="$textoSecundario" fontSize={14} lineHeight={20}>
-          {`Habla con calma y cuenta lo que pasa. Puedes grabar hasta ${reloj(DURACION_MAXIMA_AUDIO_S)}.`}
+          {'Cuenta qué pasó, cuántas personas hay y cómo están. '}
+          {`Puedes grabar hasta ${reloj(DURACION_MAXIMA_AUDIO_S)}.`}
         </Text>
       </YStack>
 
