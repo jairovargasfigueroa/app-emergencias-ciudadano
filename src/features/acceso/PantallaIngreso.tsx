@@ -132,6 +132,13 @@ export function PantallaIngreso() {
       mostrar({ tipo: 'nombre', numero }, paso.tipo === 'nombre' ? error.message : null)
       return
     }
+    if (error instanceof ErrorApi && error.codigo === 'CUENTA_DESACTIVADA') {
+      // La central desactivó la cuenta por mal uso: reintentar no cambia nada. Se vuelve al número con el aviso del
+      // servidor, que dice a quién acudir y qué número llamar ante una emergencia.
+      void cerrarVerificacion()
+      mostrar({ tipo: 'numero', escrito: numero }, error.message)
+      return
+    }
     if (error instanceof ErrorApi && error.codigo === 'VERIFICACION_TELEFONO_INVALIDA') {
       // La verificación no sirve o venció: se empieza otra vez desde el número.
       void cerrarVerificacion()

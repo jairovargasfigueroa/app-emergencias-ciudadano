@@ -37,6 +37,7 @@ export const accesoApi = {
   /**
    * Entrar y registrarse son lo mismo: con el número verificado entra a la cuenta de ese número o, la primera vez, la
    * crea. Si el número no tiene cuenta y no vienen el nombre y el aviso aceptado, responde 409 `NOMBRE_REQUERIDO`.
+   * Si la central desactivó la cuenta por mal uso, responde 409 `CUENTA_DESACTIVADA`.
    */
   ingresar: (datos: IngresoCiudadano) => api.post<SesionCiudadano>('/auth/ciudadano', datos, { sinToken: true }),
   /** Cambia el token de la sesión por uno nuevo, sin cuerpo. Un 401 quiere decir que ya no se puede renovar. */
